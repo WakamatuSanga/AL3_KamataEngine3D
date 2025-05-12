@@ -22,7 +22,6 @@ public:
 	//描画
 	void Draw();
 
-
 	~GameScene();
 
 private:
