@@ -1,54 +1,127 @@
 #include "GameScene.h"
+#include "MyMath.h"
+
 using namespace KamataEngine;
 
-void GameScene::Initialize()
-{ 
-	textureHandle_ = TextureManager::Load("inseki.png"); 
-	//スプライトインスタンスの生成
-	spreite_ = Sprite::Create(textureHandle_, {100, 50});
-	//3Dモデルの生成
+void GameScene::Initialize() {
+	
 	model_ = Model::Create();
-	//ワールドトランスフォームの初期化
-	worldTransform_.Initialize();
-	//カメラの初期化
 	camera_.Initialize();
+
+	modelPlayer_ = Model::CreateFromOBJ("player", true);
+
+	// 自キャラの生成
+	player_ = new Player();
+	// 自キャラの初期化
+	player_->Initialize(modelPlayer_, &camera_);
+
+	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
+
+	skydome_ = new Skydome();
+
+	skydome_->Initialize(modelSkydome_, &camera_);
+
+	mapChipField_ = new MapChipField();
+	mapChipField_->LoadMapChipCsv("Resources/blocks.csv");
+	GenerateBlocks();
+
+	// ブロック
+	modelBlock_ = Model::CreateFromOBJ("block", true);
+
+	// デバッグ
+	debugCamera_ = new DebugCamera(1280, 720);
 }
 
-void GameScene::Update() 
-{
-	//スプライトの今の座標を取得
-	Vector2 position = spreite_->GetPosition();
-	//座標を{2,1}移動
-	position.x += 2.0f;
-	position.y += 1.0f;
-	//移動した座標をスプライトに反映
-	spreite_->SetPosition(position);
+void GameScene::GenerateBlocks() {
+	uint32_t numBlockVirtical = mapChipField_->GetNumBlockVirtical();
+	uint32_t numBlockHorizontal = mapChipField_->GetNumBlockHorizontal();
+
+	worldTransformBlocks_.resize(numBlockVirtical);
+
+	for (uint32_t i = 0; i < numBlockVirtical; ++i) {
+		worldTransformBlocks_[i].resize(numBlockHorizontal);
+	}
+
+	for (uint32_t i = 0; i < numBlockVirtical; ++i) {
+		for (uint32_t j = 0; j < numBlockHorizontal; ++j) {
+			if (mapChipField_->GetMapChipTypeByIndex(j, i) == MapChipType::kBlock) {
+				WorldTransform* worldTransform = new WorldTransform();
+				worldTransform->Initialize();
+				worldTransformBlocks_[i][j] = worldTransform;
+				worldTransformBlocks_[i][j]->translation_ = mapChipField_->GetMapChipPositionByIndex(j, i);
+			}
+		}
+	}
 }
 
-void GameScene::Draw() 
-{ 
-	//DirectXCommonインスタンスの取得
-	DirectXCommon* dxCommon = DirectXCommon::GetInstance(); 
-	//スプライト描画後処理
-	Sprite::PreDraw(dxCommon->GetCommandList());
-
-	spreite_->Draw();
-
-	//スプライト描画後処理
-	Sprite::PostDraw();
-
-	//3Dモデル描画前処理
-	Model::PreDraw(dxCommon->GetCommandList());
-
-	//3Dモデル描画
-	model_->Draw(worldTransform_, camera_, textureHandle_);
-
-	//3Dモデル描画後処理
-	Model::PostDraw();
-}
-
-GameScene::~GameScene() 
-{
-	delete spreite_; 
+GameScene::~GameScene() {
 	delete model_;
+	delete player_;
+	for (std::vector<KamataEngine::WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
+		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
+			delete worldTransformBlock;
+		}
+	}
+	worldTransformBlocks_.clear();
+	delete debugCamera_;
+	delete modelSkydome_;
+	delete mapChipField_;
+}
+
+void GameScene::Update() {
+	player_->Update();
+	skydome_->Update();
+	for (std::vector<KamataEngine::WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
+		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
+			if (!worldTransformBlock) {
+				continue;
+			}
+			worldTransformBlock->matWorld_ = MakeAffineMatrix(worldTransformBlock->scale_, worldTransformBlock->rotation_, worldTransformBlock->translation_);
+			worldTransformBlock->TransferMatrix();
+		}
+	}
+	debugCamera_->Update();
+
+#ifdef _DEBUG
+
+	if (Input::GetInstance()->TriggerKey(DIK_0)) {
+		isDebugCameraActive_ = !isDebugCameraActive_;
+	}
+
+#endif // DEBUG
+
+	if (isDebugCameraActive_) {
+		debugCamera_->Update();
+		camera_.matView = debugCamera_->GetCamera().matView;
+		camera_.matProjection = debugCamera_->GetCamera().matProjection;
+		camera_.TransferMatrix();
+	} else {
+		camera_.UpdateMatrix();
+	}
+
+	/*for (WorldTransform* worldTransformBlock : worldTransformBlocks_)
+	{
+	    worldTransformBlock->matWorld_ =
+	        MakeAffineMatrix(worldTransformBlock->scale_, worldTransformBlock->rotation_, worldTransformBlock->translation_);
+	    worldTransformBlock->TransferMatrix();
+	}*/
+}
+
+void GameScene::Draw() {
+	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+	Model::PreDraw(dxCommon->GetCommandList());
+	player_->Draw();
+	for (std::vector<KamataEngine::WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
+		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
+			if (!worldTransformBlock) {
+				continue;
+			}
+			modelBlock_->Draw(*worldTransformBlock, camera_);
+		}
+	}
+	skydome_->Draw();
+	/*for (WorldTransform* worldTransformBlock : worldTransformBlocks_) {
+	    modelBlock_->Draw(*worldTransformBlock, camera_);
+	}*/
+	Model::PostDraw();
 }
