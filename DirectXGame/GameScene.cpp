@@ -4,16 +4,11 @@
 using namespace KamataEngine;
 
 void GameScene::Initialize() {
-	
+	// textureHandle_ = TextureManager::Load("202.png");
 	model_ = Model::Create();
 	camera_.Initialize();
 
 	modelPlayer_ = Model::CreateFromOBJ("player", true);
-
-	// 自キャラの生成
-	player_ = new Player();
-	// 自キャラの初期化
-	player_->Initialize(modelPlayer_, &camera_);
 
 	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
 
@@ -24,6 +19,13 @@ void GameScene::Initialize() {
 	mapChipField_ = new MapChipField();
 	mapChipField_->LoadMapChipCsv("Resources/blocks.csv");
 	GenerateBlocks();
+
+	// 自キャラの生成
+	player_ = new Player();
+
+	Vector3 playerPosition = mapChipField_->GetMapChipPositionByIndex(1, 18);
+	// 自キャラの初期化
+	player_->Initialize(modelPlayer_, &camera_, playerPosition);
 
 	// ブロック
 	modelBlock_ = Model::CreateFromOBJ("block", true);
