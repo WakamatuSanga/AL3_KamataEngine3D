@@ -3,6 +3,7 @@
 #include "MapChipField.h"
 #include "Player.h"
 #include "Skydome.h"
+#include "CameraController.h"
 #include <vector>
 
 class GameScene {
@@ -22,6 +23,7 @@ class GameScene {
 
 	MapChipField* mapChipField_;
 	void GenerateBlocks();
+	CameraController* cameraController_ = nullptr;
 
 private:
 	uint32_t textureHandle_ = 0;
