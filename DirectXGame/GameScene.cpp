@@ -34,6 +34,7 @@ void GameScene::Initialize() {
 	cameraController_->SetMovableArea(cameraArea);
 	// 自キャラの初期化
 	player_->Initialize(modelPlayer_, &camera_, playerPosition);
+	player_->SetMapChipField(mapChipField_);
 
 	// ブロック
 	modelBlock_ = Model::CreateFromOBJ("block", true);
