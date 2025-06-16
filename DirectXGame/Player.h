@@ -55,6 +55,11 @@ private:
 	// 着地状態フラグ
 	bool onGround_ = true;
 
+	// 着地時の速度減衰率
+	static inline const float kAttenuationLanding = 0.5f;
+
+	// 着地時の速度減衰率
+	static inline const float kAttenuationWall = 0.5f;
 	// 重力加速度
 	static inline const float kGravityAcceleration = 0.1f;
 	// 最大落下速度
@@ -100,5 +105,8 @@ public:
 	void SetMapChipField(MapChipField* mapChipField) { mapChipField_=mapChipField; }
 	void MapHitMove(const CollisionMapInfo& info);
 	void CheckMapCeiling(const CollisionMapInfo& info);
-
+	// 接地状態の切り替え処理
+	void Grounded(const CollisionMapInfo& info);
+	// 壁に接触している処理
+	void Contact(const CollisionMapInfo& info);
 };
