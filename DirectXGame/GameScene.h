@@ -1,42 +1,70 @@
 #pragma once
+#include "CameraController.h"
+#include "Enemy.h"
 #include "KamataEngine.h"
 #include "MapChipField.h"
 #include "Player.h"
-#include "Skydome.h"
-#include "CameraController.h"
+#include "skydome.h"
 #include <vector>
 
+// ゲームシーンクラス
 class GameScene {
-
-	KamataEngine::Model* model_ = nullptr;
-
-	KamataEngine::Camera camera_;
-	Player* player_ = nullptr;
-
-	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;
-
-	KamataEngine::Model* modelSkydome_ = nullptr;
-
-	KamataEngine::Model* modelPlayer_ = nullptr;
-
-	Skydome* skydome_ = nullptr;
-
-	MapChipField* mapChipField_;
-	void GenerateBlocks();
-	CameraController* cameraController_ = nullptr;
-
-private:
-	uint32_t textureHandle_ = 0;
-	KamataEngine::Model* modelBlock_;
-	KamataEngine::DebugCamera* debugCamera_ = nullptr;
-	bool isDebugCameraActive_ = false;
-
 public:
+	~GameScene();
 	// 初期化
 	void Initialize();
-	~GameScene();
+
 	// 更新
 	void Update();
+
 	// 描画
 	void Draw();
+
+	void GenerateBlocks();
+
+private:
+	// テクスチャハンドル
+	uint32_t textureHandle_ = 0;
+	// スプライト
+	KamataEngine::Sprite* sprite_ = nullptr;
+	// 3Dモデル
+	KamataEngine::Model* model_ = nullptr;
+	// ワールドトランスフォーム
+	KamataEngine::WorldTransform worldTransform_;
+	// カメラ
+	KamataEngine::Camera camera_;
+	// サウンドデータハンドル
+	uint32_t soundDataHandle_ = 0;
+	// 音声再生ハンドル
+	uint32_t voiceHandle_ = 0;
+
+	// ここから02_01からの追加
+	//  プレイヤー
+	Player* player_ = nullptr;
+	// プレイヤーモデル
+	KamataEngine::Model* player_model_ = nullptr;
+
+	// ブロックモデル
+	KamataEngine::Model* block_model_ = nullptr;
+	std::vector<std::vector<WorldTransform*>> worldTransformBlocks_;
+
+	// デバッグカメラ有効
+	bool isDebugCameraActive_ = false;
+	// デバッグカメラ
+	KamataEngine::DebugCamera* debugCamera_ = nullptr;
+
+	// 02_03 天球
+	Skydome* skydome_ = nullptr;
+	Model* modelSkydome_ = nullptr;
+
+	// 02_04 マップチップフィールド
+	MapChipField* mapChipField_;
+
+	// 02_06カメラ移動
+	CameraController* CController_ = nullptr;
+
+	// 02_09 10枚目 エネミークラス
+	Enemy* enemy_ = nullptr;
+	// 02_09 10枚目 エネミーモデル
+	KamataEngine::Model* enemy_model_ = nullptr;
 };
