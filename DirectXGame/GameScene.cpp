@@ -20,8 +20,13 @@ GameScene::~GameScene() {
 	delete modelSkydome_;
 	delete mapChipField_;
 
-	// 02_09 10枚目 敵クラス削除
-	delete enemy_;
+	// 02_09 10枚目 敵クラス削除→02_10 6枚目で削除
+	//	delete enemies_;
+
+	// 02_10 6枚目 敵クラス削除
+	for (Enemy* enemy : enemies_) {
+		delete enemy;
+	}
 }
 
 void GameScene::Initialize() {
@@ -79,13 +84,24 @@ void GameScene::Initialize() {
 	CameraController::Rect cameraArea = {12.0f, 100 - 12.0f, 6.0f, 6.0f};
 	CController_->SetMovableArea(cameraArea);
 
-	// 02_09 10枚目 敵クラス
-	enemy_ = new Enemy();
+	// 02_09 10枚目 敵クラス → 02_10の5枚目で削除
+	//	enemy_ = new Enemy();
 	// 02_09 10枚目 敵モデル
 	enemy_model_ = Model::CreateFromOBJ("enemy");
-	// 02_09 10枚目 敵位置決めて敵クラス初期化
-	Vector3 enemyPosition = mapChipField_->GetMapChipPositionByIndex(14, 18);
-	enemy_->Initialize(enemy_model_, &camera_, enemyPosition);
+	// 02_09 10枚目 敵位置決めて敵クラス初期化 → 02_10の5枚目で削除
+	//	Vector3 enemyPosition = mapChipField_->GetMapChipPositionByIndex(14, 18);
+	// enemy_->Initialize(enemy_model_, &camera_, enemyPosition);
+
+	// 02_10 5枚目（for文の中身全部）
+	for (int32_t i = 0; i < 2; ++i) {
+		Enemy* newEnemy = new Enemy();
+
+		Vector3 enemyPosition = mapChipField_->GetMapChipPositionByIndex(14 + i * 2, 18);
+
+		newEnemy->Initialize(enemy_model_, &camera_, enemyPosition);
+
+		enemies_.push_back(newEnemy);
+	}
 }
 
 void GameScene::GenerateBlocks() {
@@ -120,8 +136,11 @@ void GameScene::Update() {
 	skydome_->Update();
 	CController_->Update();
 
-	// 02_09 12枚目 敵更新
-	enemy_->Update();
+	// 02_09 12枚目 敵更新 → 02_10 7枚目で更新
+	//	enemy_->Update();
+	for (Enemy* enemy : enemies_) {
+		enemy->Update();
+	}
 
 #ifdef _DEBUG
 	if (Input::GetInstance()->TriggerKey(DIK_SPACE)) {
@@ -156,6 +175,9 @@ void GameScene::Update() {
 
 	// デバッグカメラの更新
 	debugCamera_->Update();
+
+	// 02_10 22枚目 衝突判定
+	CheckAllCollisions();
 }
 
 void GameScene::Draw() {
@@ -182,8 +204,11 @@ void GameScene::Draw() {
 		}
 	}
 
-	// 02_09 12枚目 敵更新
-	enemy_->Draw();
+	// 02_09 12枚目 敵更新 → 02_10 7枚目で更新
+	//	enemy_->Draw();
+	for (Enemy* enemy : enemies_) {
+		enemy->Draw();
+	}
 
 	Model::PostDraw();
 
@@ -192,4 +217,32 @@ void GameScene::Draw() {
 
 	// スプライト描画後処理
 	Sprite::PostDraw();
+}
+
+// 02_10 16枚目
+void GameScene::CheckAllCollisions() {
+
+	// 判定対象1と2の座標
+	AABB aabb1, aabb2;
+
+#pragma region 自キャラと敵キャラの当たり判定
+	{
+		// 自キャラの座標
+		aabb1 = player_->GetAABB();
+
+		// 自キャラと敵弾全ての当たり判定
+		for (Enemy* enemy : enemies_) {
+			// 敵弾の座標
+			aabb2 = enemy->GetAABB();
+
+			// AABB同士の交差判定
+			if (IsCollision(aabb1, aabb2)) {
+				// 自キャラの衝突時コールバックを呼び出す
+				player_->OnCollision(enemy);
+				// 敵弾の衝突時コールバックを呼び出す
+				enemy->OnCollision(player_);
+			}
+		}
+	}
+#pragma endregion
 }

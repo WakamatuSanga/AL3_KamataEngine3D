@@ -22,6 +22,9 @@ public:
 
 	void GenerateBlocks();
 
+	// 02_10 16枚目 衝突判定と応答
+	void CheckAllCollisions();
+
 private:
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0;
@@ -64,7 +67,9 @@ private:
 	CameraController* CController_ = nullptr;
 
 	// 02_09 10枚目 エネミークラス
-	Enemy* enemy_ = nullptr;
+	// Enemy* enemy_ = nullptr;//02_10で削除
 	// 02_09 10枚目 エネミーモデル
 	KamataEngine::Model* enemy_model_ = nullptr;
+	// 02_10 4枚目
+	std::list<Enemy*> enemies_;
 };
