@@ -1,6 +1,7 @@
 #pragma once
 #include "KamataEngine.h"
 #include "MyMath.h"
+#include <algorithm>
 using namespace KamataEngine;
 
 using namespace KamataEngine;
@@ -50,6 +51,10 @@ public:
 
 	// 02_12 11枚目 デスフラグ
 	bool IsDead() const { return isDead_; }
+
+	int GetHP() const { return hp_; }
+	int GetMaxHP() const { return maxHp_; }
+
 
 private:
 	// ワールド変換データ
@@ -123,4 +128,24 @@ private:
 	static inline const float kAttenuationWall = 0.2f;
 	// 02_12 11枚目 デスフラグ
 	bool isDead_ = false;
+
+	// 無敵関連
+	float invincibleTimer_ = 0.0f;
+	static inline const float kInvincibleDuration = 1.0f; // 秒
+	static inline const float kBlinkHz = 12.0f;           // 点滅周波数（見た目）
+
+	// 色変更用（点滅に使用）
+	ObjectColor playerColor_;
+
+	// ユーティリティ
+	bool IsInvincible() const { return invincibleTimer_ > 0.0f; }
+
+	// float同士を比較するので fmaxf を使うのがシンプル
+	void StartInvincible(float seconds) { invincibleTimer_ = fmaxf(invincibleTimer_, seconds); }
+
+	int maxHp_ = 3;
+	int hp_ = 3;
+
+	// 被弾処理
+	void TakeDamage(int amount);
 };

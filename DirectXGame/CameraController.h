@@ -32,6 +32,9 @@ public:
 	// 02_06スライド18枚目
 	void SetMovableArea(Rect area) { movableArea_ = area; }
 
+	  // 一時的なカメラシェイクを付与（magnitude: 揺れの強さ, duration: 継続秒）
+	void AddShake(float magnitude, float duration);
+
 private:
 	Camera* camera_ = nullptr;
 	Player* target_ = nullptr;
@@ -41,6 +44,12 @@ private:
 
 	// カメラ移動範囲
 	Rect movableArea_ = {0, 100, 0, 100};
+
+	 float shakeTime_ = 0.0f;
+	float shakeDuration_ = 0.0f;
+	float shakeMagnitude_ = 0.0f;
+	// お好みで調整。値を上げると揺れの細かさが増える
+	float shakeFreq_ = 30.0f;
 
 	// 02_06スライド23枚目 目標座標
 	Vector3 destination_;

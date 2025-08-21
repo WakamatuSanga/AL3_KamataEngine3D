@@ -1,22 +1,43 @@
 #include "DeathParticles.h"
 
-void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position) {
+//void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position) {
+//
+//	// 02_11_13枚目 モデルとカメラを退避
+//	model_ = model;
+//	camera_ = camera;
+//
+//	// 02_11_11枚目 ワールド変換の初期化
+//	for (auto& worldTransform : worldTransforms_) {
+//		worldTransform.Initialize();
+//		worldTransform.translation_ = position;
+//	}
+//
+//	// 02_11_31枚目
+//	objectColor_.Initialize();
+//
+//	// 02_11_31枚目
+//	color_ = {1, 1, 1, 1};
+//}
 
-	// 02_11_13枚目 モデルとカメラを退避
+void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position) {
+	Initialize(model, camera, position, kSpeed_, kDuration_, {1, 1, 1, 1}); 
+}
+
+void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position, float speed, float duration, const Vector4& color) {
 	model_ = model;
 	camera_ = camera;
 
-	// 02_11_11枚目 ワールド変換の初期化
-	for (auto& worldTransform : worldTransforms_) {
-		worldTransform.Initialize();
-		worldTransform.translation_ = position;
+	for (auto& wt : worldTransforms_) {
+		wt.Initialize();
+		wt.translation_ = position;
 	}
 
-	// 02_11_31枚目
 	objectColor_.Initialize();
 
-	// 02_11_31枚目
-	color_ = {1, 1, 1, 1};
+	// ★ 可変パラメータ
+	speed_ = speed;
+	duration_ = duration;
+	color_ = color;
 }
 
 void DeathParticles::Update() {
@@ -39,7 +60,7 @@ void DeathParticles::Update() {
 	// 02_11_23枚目
 	for (uint32_t i = 0; i < kNumParticles; ++i) {
 		// 基本となる速度ベクトル
-		Vector3 velocity = {kSpeed_, 0, 0};
+		Vector3 velocity = {speed_, 0, 0};
 
 		// 回転角を計算する
 		float angle = kAngleUnit_ * i;

@@ -1,53 +1,73 @@
 #pragma once
-
 #include "KamataEngine.h"
 #include "MyMath.h"
 
 using namespace KamataEngine;
 
-// 02_10 20枚目
 class Player;
+class MapChipField; // 地形参照
 
-// 02_09 スライド4枚目
 class Enemy {
-
 public:
-	// 02_09 スライド5枚目
+	// 敵タイプ
+	enum class Type { Walker, Jumper, Chaser, Flyer };
+
 	void Initialize(Model* model, Camera* camera, const Vector3& position);
-	// 02_09 スライド5枚目
 	void Update();
-	// 02_09 スライド5枚目
 	void Draw();
-	// 02_10 スライド14枚目
 	AABB GetAABB();
-	// 02_10 スライド14枚目 ワールド座標を取得
 	Vector3 GetWorldPosition();
-	// 02_10 スライド20枚目 衝突応答
 	void OnCollision(const Player* player);
 
+	// AI用セットアップ
+	void SetType(Type t) { type_ = t; }
+	void SetTarget(Player* p) { target_ = p; }          // 追跡で使用
+	void SetMapChipField(MapChipField* f) { map_ = f; } // 地面判定で使用
+
 private:
-	// 02_09 6枚目 ザ・ワールド
+	// 基本
 	WorldTransform worldTransform_;
-	// 02_09 6枚目 モデル
 	Model* model_ = nullptr;
-	// 02_09 6枚目 カメラ
 	Camera* camera_ = nullptr;
 
-	// 02_09 15枚目
 	static inline const float kWalkSpeed = 0.02f;
-	// 02_09 15枚目
 	Vector3 velocity_ = {};
 
-	// 02_09 19枚目
-	static inline const float kWalkMotionAngleStart = 0.0f;
-	// 02_09 19枚目
-	static inline const float kWalkMotionAngleEnd = 30.0f;
-	// 02_09 19枚目
 	static inline const float kWalkMotionTime = 1.0f;
-	// 02_09 20枚目
 	float walkTimer = 0.0f;
 
-	// 02_10 14枚目 当たり判定サイズ
+	// 当たり判定
 	static inline const float kWidth = 0.8f;
 	static inline const float kHeight = 0.8f;
+
+	// AI 状態
+	Type type_ = Type::Walker;
+	Player* target_ = nullptr;
+	MapChipField* map_ = nullptr;
+
+	// ジャンプ・重力（上が+Y）
+	static inline const float kJumpVy = 0.25f;
+	static inline const float kGrav = 0.01f;
+	static inline const float kFallVMax = 0.25f;
+	float aiTimer_ = 0.0f;
+
+	// 追跡
+	static inline const float kChaseSpeed = 0.03f;
+	static inline const float kChaseRange = 6.0f;
+
+	// 飛行
+	float baseY_ = 0.0f;
+	static inline const float kFlyAmp = 0.5f;
+	static inline const float kFlyHz = 0.5f;
+
+	// --- 滑らか振り向き制御（プレイヤーと同様の仕組み） ---
+	float turnFirstRotationY_ = 0.0f;           // 振り向き開始角
+	float turnTimer_ = 0.0f;                    // 残り時間
+	static inline const float kTimeTurn = 0.3f; // 回転時間（秒）
+	int facingDir_ = -1;                        // 右=+1, 左=-1（初期は左）
+	static inline const float kFaceEps = 0.0001f;
+
+	// 地形ヘルパ
+	bool IsGroundBelow(const Vector3& pos) const; // 足元ブロック？
+	bool IsLedgeAhead(int dir) const;             // 足場端？
 };

@@ -19,6 +19,10 @@ void Player::Initialize(Model* model, Camera* camera, const Vector3& position) {
 	worldTransform_.rotation_.y = std::numbers::pi_v<float> / 2.0f;
 
 	camera_ = camera;
+	// 色オブジェクト（点滅用）初期化
+	playerColor_.Initialize();
+
+	hp_ = maxHp_ = 3; // 初期HP
 }
 
 // 移動入力(02_07 スライド10枚目)
@@ -256,6 +260,18 @@ void Player::UpdateOnWall(const CollisionMapInfo& info) {
 	}
 }
 
+void Player::TakeDamage(int amount) {
+	if (IsInvincible() || isDead_)
+		return;
+
+	hp_ = std::max(0, hp_ - amount);
+	if (hp_ <= 0) {
+		isDead_ = true; // 既存のフェーズ遷移（Death→Fade）に繋がる
+	} else {
+		StartInvincible(kInvincibleDuration); // 既存の無敵＆点滅へ
+	}
+}
+
 // 中身入れるのは02_08スライド25枚目
 void Player::CheckMapCollisionRight(CollisionMapInfo& info) {
 
@@ -440,12 +456,31 @@ void Player ::Update() {
 
 	// ワールド行列更新（アフィン変換～DirectXに転送）
 	WorldTransformUpdate(worldTransform_);
+
+	// --- ここから追加：無敵＆点滅処理 ---
+	if (invincibleTimer_ > 0.0f) {
+		invincibleTimer_ = std::max(invincibleTimer_ - (1.0f / 60.0f), 0.0f);
+
+		// 点滅。半透明ON/OFFでもOKだが、分かりやすく非表示/表示のトグル
+		// 無敵中は時間に応じてブリンク
+		float phase = invincibleTimer_ * kBlinkHz * 2.0f; // 1秒で2*kBlinkHz回トグル
+		bool visible = (static_cast<int>(phase) % 2) == 0;
+
+		Vector4 col = {1, 1, 1, visible ? 1.0f : 0.0f};
+		playerColor_.SetColor(col);
+	} else {
+		// 通常時は不透明
+		playerColor_.SetColor({1, 1, 1, 1});
+	}
+	// --- ここまで追加 ---
 }
 
 void Player::Draw() {
 
 	// モデル描画
-	model_->Draw(worldTransform_, *camera_);
+	// model_->Draw(worldTransform_, *camera_);
+	// 変更：色オブジェクトを渡す（点滅反映）
+	model_->Draw(worldTransform_, *camera_, &playerColor_);
 }
 
 // 02_10 10枚目
@@ -479,5 +514,14 @@ void Player::OnCollision(const Enemy* enemy) {
 	(void)enemy;
 
 	// 02_12 12枚目 書き換え
-	isDead_ = true;
+	// isDead_ = true;
+	TakeDamage(1);
+	// ★ 変更：即死させずに無敵化（重複発動を防止）
+	if (!IsInvincible()) {
+		StartInvincible(kInvincibleDuration);
+
+		// もしノックバックを入れたい場合
+		velocity_.x = (lrDirection_ == LRDirection::kRight ? -0.2f : 0.2f);
+		velocity_.y = 0.25f;
+	}
 }

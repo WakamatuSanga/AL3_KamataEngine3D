@@ -10,6 +10,10 @@ class DeathParticles {
 public:
 	// 02_11_8枚目 Initialize,Update,Draw関数追加
 	void Initialize(Model* model, Camera* camera, const Vector3& position);
+
+	  // ★ 追加：可変パラメータ付き
+	void Initialize(Model* model, Camera* camera, const Vector3& position, float speed, float duration, const Vector4& color);
+
 	void Update();
 	void Draw();
 
@@ -34,6 +38,10 @@ private:
 
 	// 02_11_22枚目 移動の速さ
 	static inline const float kSpeed_ = 0.05f;
+
+	    // ★ 追加：インスタンス毎の値
+	float duration_ = kDuration_;
+	float speed_ = kSpeed_;
 
 	// 02_11_22枚目 分割した1個分の角度(#include <numbers>)
 	static inline const float kAngleUnit_ = 2.0f * std::numbers::pi_v<float> / kNumParticles;
