@@ -19,12 +19,12 @@ public:
 		camera_.Initialize();
 
 		// ▼資産名は手持ちに合わせて（無ければ "titleFont" 等）
-		//modelFont_ = Model::CreateFromOBJ("gameOverFont", true);
-		 modelFont_ = Model::CreateFromOBJ("titleFont", true); // ←代替
+		// modelFont_ = Model::CreateFromOBJ("gameOverFont", true);
+		modelFont_ = Model::CreateFromOBJ("gameOverFont", true); // ←代替
 
 		wtFont_.Initialize();
-		wtFont_.scale_ = {8.0f, 8.0f, 8.0f};
-		wtFont_.translation_.y = 2.0f;
+		wtFont_.scale_ = {1.3f, 1.3f, 1.3f};
+		wtFont_.translation_.y = 5.0f;
 		WorldTransformUpdate(wtFont_);
 		modelBg_ = Model::CreateFromOBJ("SkyDome", true);
 		bgDome_ = new Skydome();

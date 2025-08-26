@@ -20,8 +20,8 @@ public:
 		// クリア表示用モデル（無ければ "titleFont" 等に変えてください）
 		modelFont_ = Model::CreateFromOBJ("clearFont", true);
 		wtFont_.Initialize();
-		wtFont_.scale_ = {8.0f, 8.0f, 8.0f};
-		wtFont_.translation_.y = 2.0f;
+		wtFont_.scale_ = {2.0f, 2.0f, 2.0f};
+		wtFont_.translation_.y = 5.0f;
 		WorldTransformUpdate(wtFont_);
 		modelBg_ = Model::CreateFromOBJ("SkyDome", true);
 		bgDome_ = new Skydome();
