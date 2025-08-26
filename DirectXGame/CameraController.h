@@ -53,10 +53,14 @@ private:
 
 	// 02_06スライド23枚目 目標座標
 	Vector3 destination_;
-	// 02_06スライド23枚目 座標補間割合
-	static inline const float kInterpolationRate = 0.1f;
-	// 02_06スライド28枚目 速度掛け率
-	static inline const float kVelocityBias = 30.0f;
+	// 追従の補間率（軸別）
+	static inline const float kInterpolationRateX = 0.10f;
+	static inline const float kInterpolationRateY = 0.05f; // 縦はゆっくり
+
+	// 速度バイアス（軸別）
+	static inline const float kVelocityBiasX = 30.0f; // 横は効かせる
+	static inline const float kVelocityBiasY = 0.0f;  // 縦は切る
+
 	// 02_06スライド33枚目 追従対象の各方向へのカメラ移動範囲
 	static inline const Rect targetMargin = {-9.0f, 9.0f, -5.0f, 5.0f};
 };

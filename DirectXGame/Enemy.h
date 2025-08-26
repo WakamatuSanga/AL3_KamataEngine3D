@@ -23,7 +23,8 @@ public:
 	void SetType(Type t) { type_ = t; }
 	void SetTarget(Player* p) { target_ = p; }          // 追跡で使用
 	void SetMapChipField(MapChipField* f) { map_ = f; } // 地面判定で使用
-
+	void OnDamage(float damage, const Vector3& fromDir); // 追加
+	bool IsDead() const { return isDead_; }              // 追加
 private:
 	// 基本
 	WorldTransform worldTransform_;
@@ -44,6 +45,8 @@ private:
 	Type type_ = Type::Walker;
 	Player* target_ = nullptr;
 	MapChipField* map_ = nullptr;
+	float hp_ = 30.0f;    // 体力
+	bool isDead_ = false; // 撃破フラグ
 
 	// ジャンプ・重力（上が+Y）
 	static inline const float kJumpVy = 0.25f;

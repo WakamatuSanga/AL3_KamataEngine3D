@@ -1,6 +1,6 @@
 #include "DeathParticles.h"
 
-//void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position) {
+// void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position) {
 //
 //	// 02_11_13枚目 モデルとカメラを退避
 //	model_ = model;
@@ -17,11 +17,9 @@
 //
 //	// 02_11_31枚目
 //	color_ = {1, 1, 1, 1};
-//}
+// }
 
-void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position) {
-	Initialize(model, camera, position, kSpeed_, kDuration_, {1, 1, 1, 1}); 
-}
+void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position) { Initialize(model, camera, position, kSpeed_, kDuration_, {1, 1, 1, 1}); }
 
 void DeathParticles::Initialize(Model* model, Camera* camera, const Vector3& position, float speed, float duration, const Vector4& color) {
 	model_ = model;

@@ -1,6 +1,8 @@
 #include "GameScene.h"
 #include "KamataEngine.h"
 #include "TitleScene.h" // 02_12 21枚目
+#include "ClearScene.h"
+#include "GameOverScene.h"
 #include <Windows.h>
 
 using namespace KamataEngine; // これ書いておくとkamataEngine::書かなくてよい
@@ -8,23 +10,25 @@ using namespace KamataEngine; // これ書いておくとkamataEngine::書かな
 // 02_12 24枚目
 TitleScene* titleScene = nullptr;
 GameScene* gameScene = nullptr;
-
+ClearScene* clearScene = nullptr;
+GameOverScene* gameOverScene = nullptr;
 // 02_12 25枚目(Scene sceneまで)
 enum class Scene {
 	kUnknown = 0,
 	kTitle,
-	kGame,
+	kGame, 
+	kClear,
+	kGameOver
+
 };
 // 現在シーン（型）
 Scene scene = Scene::kUnknown;
 
 // 02_12 29枚目
 void ChangeScene() {
-
 	switch (scene) {
 	case Scene::kTitle:
 		if (titleScene->IsFinished()) {
-			// シーン変更
 			scene = Scene::kGame;
 			delete titleScene;
 			titleScene = nullptr;
@@ -32,19 +36,59 @@ void ChangeScene() {
 			gameScene->Initialize();
 		}
 		break;
+
 	case Scene::kGame:
-		// 02_12 30枚目
 		if (gameScene->IsFinished()) {
-			// シーン変更
+			if (gameScene->IsCleared()) {
+				// クリア → クリア画面へ
+				scene = Scene::kClear;
+				delete gameScene;
+				gameScene = nullptr;
+				clearScene = new ClearScene;
+				clearScene->Initialize();
+			} else if (gameScene->IsReturnToTitle()) { 
+				// ポーズメニューからタイトルへ
+				scene = Scene::kTitle;
+				delete gameScene;
+				gameScene = nullptr;
+				titleScene = new TitleScene;
+				titleScene->Initialize();
+			} else {
+				// 死亡 → ゲームオーバーへ
+				scene = Scene::kGameOver;
+				delete gameScene;
+				gameScene = nullptr;
+				gameOverScene = new GameOverScene;
+				gameOverScene->Initialize();
+			}
+		}
+		break;
+
+	case Scene::kClear:
+		if (clearScene->IsFinished()) {
+			// クリア画面でスペース → タイトルへ
 			scene = Scene::kTitle;
-			delete gameScene;
-			gameScene = nullptr;
+			delete clearScene;
+			clearScene = nullptr;
+			titleScene = new TitleScene;
+			titleScene->Initialize();
+		}
+		break;
+
+	case Scene::kGameOver:
+		if (gameOverScene->IsFinished()) {
+			// ★ゲームオーバー画面でスペース → タイトルへ
+			scene = Scene::kTitle;
+			delete gameOverScene;
+			gameOverScene = nullptr;
 			titleScene = new TitleScene;
 			titleScene->Initialize();
 		}
 		break;
 	}
 }
+
+
 
 // 02_12 31枚目
 void UpdateScene() {
@@ -56,7 +100,14 @@ void UpdateScene() {
 	case Scene::kGame:
 		gameScene->Update();
 		break;
+	case Scene::kClear:
+		clearScene->Update();
+		break; 
+		case Scene::kGameOver:
+		gameOverScene->Update();
+		break;
 	}
+
 }
 
 // 02_12 32枚目
@@ -67,6 +118,12 @@ void DrawScene() {
 		break;
 	case Scene::kGame:
 		gameScene->Draw();
+		break;
+	case Scene::kClear:
+		clearScene->Draw();
+		break;
+	case Scene::kGameOver:
+		gameOverScene->Draw();
 		break;
 	}
 }

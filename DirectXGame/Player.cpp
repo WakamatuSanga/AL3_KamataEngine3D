@@ -384,9 +384,17 @@ Vector3 Player::CornerPosition(const Vector3& center, Corner corner) {
 	return center + offsetTable[static_cast<uint32_t>(corner)];
 }
 
+
+
 void Player ::Update() {
 
 	// 移動入力(02_07 スライド10枚目)
+	InputMove();
+
+	 // 先に攻撃入力を見る
+	TryStartAttack();
+
+	// 既存の移動入力
 	InputMove();
 
 	// 衝突情報を初期化(02_07 スライド13枚目)
@@ -454,6 +462,19 @@ void Player ::Update() {
 		worldTransform_.rotation_.y = EaseInOut(destinationRotationY, turnFirstRotationY_, turnTimer_ / kTimeTurn);
 	}
 
+	 // ★ 攻撃タイマー進行（最後にまとめてでOK）
+	const float dt = 1.0f / 60.0f;
+	if (attackCooldown_ > 0.0f) {
+		attackCooldown_ = std::max(0.0f, attackCooldown_ - dt);
+	}
+	if (isAttacking_) {
+		attackTimer_ += dt;
+		if (attackTimer_ >= kAttackDuration) {
+			isAttacking_ = false;
+			attackCooldown_ = kAttackCooldown;
+		}
+	}
+
 	// ワールド行列更新（アフィン変換～DirectXに転送）
 	WorldTransformUpdate(worldTransform_);
 
@@ -473,6 +494,47 @@ void Player ::Update() {
 		playerColor_.SetColor({1, 1, 1, 1});
 	}
 	// --- ここまで追加 ---
+
+	// === 攻撃入力と斬撃表示 ===
+	// Zキーor任意キー（必要なら別キーに変更）
+	if (Input::GetInstance()->TriggerKey(DIK_Z)) {
+		// ここで「内部の攻撃ロジック（当たり判定の開始）」も既に行っている想定
+		// 見た目だけ追加する
+
+		if (attackModel_) {
+			// プレイヤーの向きからオフセットを計算
+			// 右向き（+X）/左向き（-X）の左右に少し前方＆上へ
+			float yaw = worldTransform_.rotation_.y;
+			float dir = (lrDirection_ == LRDirection::kRight) ? +1.0f : -1.0f;
+
+			Vector3 spawnPos = GetWorldPosition();
+			spawnPos.x += dir * 0.7f; // 前方
+			spawnPos.y += 0.6f;       // 少し上
+
+			// 見た目：ロールで斬撃に傾きを付ける（好みで調整）
+			float roll = (dir > 0.0f) ? +0.35f : -0.35f;
+
+			auto* s = new AttackSlash();
+			s->Initialize(
+			    attackModel_, camera_, spawnPos, yaw,
+			    /*life*/ 0.15f,
+			    /*scaleStart*/ {0.8f, 0.8f, 0.8f},
+			    /*scaleEnd*/ {1.6f, 0.6f, 1.0f}, roll);
+			slashes_.push_back(s);
+		}
+	}
+
+	// スラッシュ更新＆終了したものを破棄
+	for (auto it = slashes_.begin(); it != slashes_.end();) {
+		AttackSlash* s = *it;
+		s->Update();
+		if (s->Finished()) {
+			delete s;
+			it = slashes_.erase(it);
+		} else {
+			++it;
+		}
+	}
 }
 
 void Player::Draw() {
@@ -481,18 +543,26 @@ void Player::Draw() {
 	// model_->Draw(worldTransform_, *camera_);
 	// 変更：色オブジェクトを渡す（点滅反映）
 	model_->Draw(worldTransform_, *camera_, &playerColor_);
+	// 既存：モデル描画
+	model_->Draw(worldTransform_, *camera_);
+
+	// 追加：斬撃描画
+	for (AttackSlash* s : slashes_) {
+		s->Draw();
+	}
 }
 
 // 02_10 10枚目
-Vector3 Player::GetWorldPosition() {
+Vector3 Player::GetWorldPosition() const {
 
 	Vector3 worldPos;
-	// ワールド行列の平行移動成分を取得（ワールド座標）
 	worldPos.x = worldTransform_.matWorld_.m[3][0];
 	worldPos.y = worldTransform_.matWorld_.m[3][1];
 	worldPos.z = worldTransform_.matWorld_.m[3][2];
 	return worldPos;
 }
+
+
 
 // 02_10 14枚目
 AABB Player::GetAABB() {
@@ -504,6 +574,35 @@ AABB Player::GetAABB() {
 	aabb.min = {worldPos.x - kWidth / 2.0f, worldPos.y - kHeight / 2.0f, worldPos.z - kWidth / 2.0f};
 	aabb.max = {worldPos.x + kWidth / 2.0f, worldPos.y + kHeight / 2.0f, worldPos.z + kWidth / 2.0f};
 
+	return aabb;
+}
+
+void Player::TryStartAttack() {
+	if (isAttacking_)
+		return;
+	if (attackCooldown_ > 0.0f)
+		return;
+	if (!Input::GetInstance()->TriggerKey(DIK_Z))
+		return; // ★ Zキーで攻撃
+
+	isAttacking_ = true;
+	attackTimer_ = 0.0f;
+	// 立ちモーションや微停止を入れたいなら velocity_.x *= 0.6f; など
+}
+
+AABB Player::GetAttackAABB() const {
+	// 攻撃が出ていないときは「空」のAABBを返す（呼び側でIsAttackActiveを見るのが本筋）
+	AABB aabb{};
+	if (!isAttacking_)
+		return aabb;
+
+	Vector3 wp = GetWorldPosition();
+	// 攻撃中心をプレイヤーの前方にオフセット
+	float dir = (lrDirection_ == LRDirection::kRight) ? +1.0f : -1.0f;
+	Vector3 center = wp + Vector3(dir * (kWidth / 2.0f + kAttackReach / 2.0f), 0.0f, 0.0f);
+
+	aabb.min = {center.x - kAttackWidth / 2.0f, center.y - kAttackHeight / 2.0f, center.z - kAttackWidth / 2.0f};
+	aabb.max = {center.x + kAttackWidth / 2.0f, center.y + kAttackHeight / 2.0f, center.z + kAttackWidth / 2.0f};
 	return aabb;
 }
 
@@ -524,4 +623,9 @@ void Player::OnCollision(const Enemy* enemy) {
 		velocity_.x = (lrDirection_ == LRDirection::kRight ? -0.2f : 0.2f);
 		velocity_.y = 0.25f;
 	}
+}
+void Player::CleanupSlashes() {
+	for (auto* s : slashes_)
+		delete s;
+	slashes_.clear();
 }

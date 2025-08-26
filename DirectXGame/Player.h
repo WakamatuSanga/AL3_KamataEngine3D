@@ -1,6 +1,8 @@
 #pragma once
 #include "KamataEngine.h"
 #include "MyMath.h"
+#include <list>
+#include "AttackSlash.h"
 #include <algorithm>
 using namespace KamataEngine;
 
@@ -41,7 +43,7 @@ public:
 	void SetMapChipField(MapChipField* mapChipField) { mapChipField_ = mapChipField; }
 
 	// 02_10 10枚目 ワールド座標を取得
-	Vector3 GetWorldPosition();
+	Vector3 GetWorldPosition() const;
 
 	// 02_10 13枚目
 	AABB GetAABB();
@@ -54,6 +56,14 @@ public:
 
 	int GetHP() const { return hp_; }
 	int GetMaxHP() const { return maxHp_; }
+	float GetHpRatio() const { return (maxHp_ > 0.0f) ? (hp_ / maxHp_) : 0.0f; }
+
+	void TryStartAttack(); // 入力→攻撃開始
+	bool IsAttackActive() const { return isAttacking_; }
+	AABB GetAttackAABB() const; // 攻撃当たり判定
+	float GetAttackDamage() const { return kAttackDamage; }
+
+	void SetAttackModel(Model* m) { attackModel_ = m; }
 
 
 private:
@@ -148,4 +158,21 @@ private:
 
 	// 被弾処理
 	void TakeDamage(int amount);
+
+	bool isAttacking_ = false;
+	float attackTimer_ = 0.0f;
+	float attackCooldown_ = 0.0f;
+
+	static inline const float kAttackDuration = 0.18f; // 攻撃の出ている時間
+	static inline const float kAttackCooldown = 0.12f; // 次の攻撃までの待ち
+	static inline const float kAttackWidth = 1.0f;     // 攻撃判定の幅
+	static inline const float kAttackHeight = 0.8f;    // 攻撃判定の高さ
+	static inline const float kAttackReach = 0.8f;     // プレイヤー前方にどれだけ伸ばすか
+	static inline const float kAttackDamage = 20.0f;   // ダメージ
+
+	// ---- 攻撃ビジュアル ----
+	std::list<AttackSlash*> slashes_;
+	Model* attackModel_ = nullptr; // GameScene から渡す
+	// 攻撃ビジュアルのクリーンアップ
+	void CleanupSlashes();
 };

@@ -165,8 +165,25 @@ void Enemy::Update() {
 	// 見た目の歩行アニメ（上下揺れ）
 	worldTransform_.rotation_.x = std::sin(std::numbers::pi_v<float> * 2.0f * walkTimer / kWalkMotionTime);
 
+	
+
 	// 行列更新
 	WorldTransformUpdate(worldTransform_);
+	// --- ここから追加：マップ外で即死 ---
+	if (map_) {
+		const float left = 0.0f;
+		const float right = (map_->GetNumBlockHorizontal() - 1) * MapChipField::kBlockWidth;
+		const float bottom = 0.0f;
+		const float top = (map_->GetNumBlockVirtical() - 1) * MapChipField::kBlockHeight;
+
+		const Vector3 worldPos = GetWorldPosition(); // ← ここをリネーム
+		const float margin = 0.5f;
+
+		if (worldPos.x < left - margin || worldPos.x > right + margin || worldPos.y < bottom - margin || worldPos.y > top + margin) {
+			isDead_ = true; // Kill()/OnDamageでもOK
+			return;
+		}
+	}
 }
 
 void Enemy::Draw() { model_->Draw(worldTransform_, *camera_); }
@@ -190,4 +207,18 @@ Vector3 Enemy::GetWorldPosition() {
 void Enemy::OnCollision(const Player* player) {
 	(void)player;
 	// 必要があれば個別の応答を実装
+}
+
+void Enemy::OnDamage(float damage, const Vector3& fromDir) {
+	if (isDead_)
+		return;
+	hp_ -= damage;
+	// 簡易ノックバック
+	velocity_.x += (fromDir.x >= 0.0f ? +1.0f : -1.0f) * 0.15f;
+	velocity_.y = 0.12f;
+
+	if (hp_ <= 0.0f) {
+		isDead_ = true;
+		// 必要ならここでエフェクト生成やSE再生をトリガー
+	}
 }

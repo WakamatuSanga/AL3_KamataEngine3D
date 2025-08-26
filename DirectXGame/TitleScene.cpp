@@ -18,6 +18,13 @@ void TitleScene::Initialize() {
 	// カメラ初期化
 	camera.Initialize();
 
+	// ★ここから：背景ドーム
+	modelBg_ = Model::CreateFromOBJ("SkyDome", true); // 既にあるSkyDome資産を流用
+	bgDome_ = new Skydome();
+	bgDome_->Initialize(modelBg_, &camera);
+	bgDome_->SetColor({0.3f, 0.3f, 0.3f, 1.0f}); // タイトルは灰色
+	// ★ここまで
+
 	const float kPlayerTitle = 2.0f;
 
 	worldTransformTitle.Initialize();
@@ -101,7 +108,7 @@ void TitleScene::Draw() {
 	ID3D12GraphicsCommandList* commandList = dxCommon_->GetCommandList();
 
 	Model::PreDraw(commandList);
-
+	if (bgDome_)bgDome_->Draw();
 	modelTitle->Draw(worldTransformTitle, camera);
 	modelPlayer->Draw(worldTransformPlayer, camera);
 
