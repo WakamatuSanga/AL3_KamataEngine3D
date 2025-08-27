@@ -1,6 +1,7 @@
 #include "MyMath.h"
 #include <cmath>
 #include <numbers>
+#include <cassert> 
 
 // 02_06の29枚目(CameraControllerのUpdate)で必要
 const Vector3 operator*(const Vector3& v1, const float f) {
