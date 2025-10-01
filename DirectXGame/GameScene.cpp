@@ -3,7 +3,7 @@ using namespace KamataEngine;
 
 void GameScene::Initialize()
 { 
-	textureHandle_ = TextureManager::Load("inseki.png"); 
+	//textureHandle_ = TextureManager::Load("inseki.png"); 
 	//スプライトインスタンスの生成
 	spreite_ = Sprite::Create(textureHandle_, {100, 50});
 	//3Dモデルの生成
