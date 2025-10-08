@@ -1,31 +1,27 @@
 #pragma once
-#include"KamataEngine.h"
+#include "KamataEngine.h"
+#include "Player.h" 
+using namespace KamataEngine;
 // ゲームシーン
 class GameScene {
 public:
-	//3Dモデル
-	KamataEngine::Model* model_ = nullptr;
-	//スプライト
-	KamataEngine::Sprite* spreite_ = nullptr;
-	//ワールドトランスフォーム
-	KamataEngine::WorldTransform worldTransform_;
-	//カメラ
+	// カメラ
 	KamataEngine::Camera camera_;
-	//デバックカメラ
-	KamataEngine::DebugCamera* debugCamera_ = nullptr;
-	//初期化
+
+	// プレイヤー
+	Player* player_ = nullptr;
+	KamataEngine::Model* playerModel_ = nullptr;
+
+	// 床
+	KamataEngine::WorldTransform floorWorldTransform_;
+	KamataEngine::Model* floorModel_ = nullptr;
+
+	// 初期化
 	void Initialize();
-
-	//更新
+	// 更新
 	void Update();
-
-	//描画
+	// 描画
 	void Draw();
-
-
+	// デストラクタ
 	~GameScene();
-
-private:
-	// テクスチャハンドル
-	uint32_t textureHandle_ = 0;
 };
