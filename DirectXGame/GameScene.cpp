@@ -1,4 +1,8 @@
 #include "GameScene.h"
+#include <filesystem>
+using namespace std;
+
+
 
 void GameScene::Initialize() {
 	// カメラの初期化
@@ -13,7 +17,8 @@ void GameScene::Initialize() {
 
 	// ブロックモデルの読み込み
 	blockModel_ = Model::CreateFromOBJ("block");
-
+	OutputDebugStringA((string("CWD: ") + std::filesystem::current_path().string() + "\n").c_str());
+	OutputDebugStringA((string("exists(Resources/blocks.csv): ") + (std::filesystem::exists("Resources/blocks.csv") ? "true" : "false") + "\n").c_str());
 	// マップチップフィールドの生成とCSV読み込み
 	mapChipField_ = new MapChipField();
 	mapChipField_->LoadMapChipCsv("Resources/blocks.csv");
