@@ -1,142 +1,136 @@
 #include "GameScene.h"
-#include "MyMath.h"
+#include "MyMath.h" // MakeAffineMatrix など、行列/ベクトルユーティリティ
 using namespace KamataEngine;
 
-void GameScene::Initialize()
-{ 
-	//textureHandle_ = TextureManager::Load("inseki.png"); 
-	////スプライトインスタンスの生成
-	//spreite_ = Sprite::Create(textureHandle_, {100, 50});
-	////3Dモデルの生成
-	//model_ = Model::Create();
-	//ワールドトランスフォームの初期化
-	//worldTransform_.Initialize();
-	//カメラの初期化
+
+//  GameScene::Initialize
+//  シーン開始時に一度だけ呼ばれる初期化。カメラ/スプライン/プレイヤーを作る。
+
+void GameScene::Initialize() {
+	// --- カメラ初期化（投影・ビュー用の内部バッファなどを初期化） ---
 	camera_.Initialize();
-	modelBlock_ = Model::CreateFromOBJ("cube");
-	/*const uint32_t kNumBlockHorizontal = 20;
-	const float kBlockWidth = 2.0f;
-	worldTransformBlocks_.resize(kNumBlockHorizontal);
 
-	for (uint32_t i = 0; i < kNumBlockHorizontal; i++) {
-		worldTransformBlocks_[i] = new WorldTransform();
-		worldTransformBlocks_[i] -> Initialize();
-		worldTransformBlocks_[i]->translation_.x = kBlockWidth * i;
-		worldTransformBlocks_[i]->translation_.y = 0.0f;
-	}*/
+	// --- ステージ用スプライン制御点の定義 ---
+	// Catmull-Rom の安定化のため、前後に「番兵（sentinel）」を置くのが定石。
+	// ここでは Z+ 方向に進む緩い S 字カーブを作って、レール移動の雰囲気を先に確認する。
+	std::vector<Vector3> cp = {
+	    {-2, 0, -10}, // [0] 先頭番兵（実際の走行区間外）
+	    {0,  0, 0  }, // [1] 走行開始点
+	    {1,  0, 10 }, // [2]
+	    {-1, 0, 20 }, // [3]
+	    {2,  0, 30 }, // [4]
+	    {0,  0, 40 }, // [5]
+	    {0,  0, 50 }, // [6] 走行終端
+	    {0,  0, 55 }  // [7] 終端番兵（実際の走行区間外）
+	};
+	spline_.SetControlPoints(cp);
 
-	const uint32_t kNumBlockVirticrl = 10;
-	const uint32_t kNumBlockHorezontal = 20;
+	// --- レールカメラの初期化 ---
+	// スプラインに沿って前進し、曲率に応じた「バンク（機体や視点の傾き）」を付ける。
+	railCam_.Initialize(&spline_, &camera_);
+	railCam_.SetSpeedPerFrame(0.02f);  // 1フレームあたりの t 進行量（＝ステージの進み具合）
+	railCam_.SetFollowDist(7.5f);      // カメラの追従距離（視点の位置を進行点の少し後ろに置く）
+	railCam_.SetLookAhead(4.0f);       // 注視点の先読み距離（視点が少し先を向く）
+	railCam_.SetBankParam(0.9f, 0.6f); // バンク強度k と 最大角（ラジアン）
 
-	const float kBlockWidth = 2.0f;
-	const float kBlockHeight = 2.0f;
+	// --- プレイヤーの仮モデル（見た目） ---
+	// 最初は「cube.obj」でOK。後で専用機体モデルに差し替えれば良い。
+	modelPlayer_ = Model::CreateFromOBJ("cube");
 
+	// --- プレイヤー初期化（移動だけ先に実装。射撃は Step 2 で追加） ---
+	player_.Initialize(modelPlayer_);
 
-	worldTransformBlocks_.resize(kNumBlockVirticrl);
-	for (uint32_t i = 0; i < kNumBlockVirticrl; ++i) {
-		worldTransformBlocks_[i].resize(kNumBlockHorezontal);
-	}
+	// カメラから前方8mの平面に乗せ、やや下寄せ（-0.55）
+	player_.SetViewPlaneDist(8.0f);
+	player_.SetScreenBiasY(-0.55f);
 
-	for (uint32_t i = 0; i < kNumBlockVirticrl; i++) {
-		for (uint32_t j = 1; j < kNumBlockHorezontal; j++) {
-			if (j % 2 == 0)
-				continue;
-			if (i % 2 == 0)
-				continue;
-			
-			worldTransformBlocks_[i][j] = new WorldTransform();
-			worldTransformBlocks_[i][j]->Initialize();
-			worldTransformBlocks_[i][j]->translation_.x = kBlockWidth * j;
-			worldTransformBlocks_[i][j]->translation_.y = kBlockHeight * i;
-
-		}
-	}
-	//デバックカメラ生成
-	debugCamera_ = new DebugCamera(static_cast <int>(kBlockHeight), static_cast <int>(kBlockWidth));
+	// --- デバッグカメラ（0キーで切替） ---
+	// シーンの見回し・当たり判定の目視確認などに便利。リリース時には無効化でOK。
+	debugCamera_ = new DebugCamera(1280, 720);
+	// （補足）
+	// worldTransformBlocks_ 等のステージ配置テストは、必要になった段階で戻して使ってください。
 }
 
-void GameScene::Update() 
-{
-	////スプライトの今の座標を取得
-	//Vector2 position = spreite_->GetPosition();
-	////座標を{2,1}移動
-	//position.x += 2.0f;
-	//position.y += 1.0f;
-	////移動した座標をスプライトに反映
-	//spreite_->SetPosition(position);
-	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
-		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
-			if (!worldTransformBlock) 
-				continue;
-			
-			worldTransformBlock->matWorld_ = MakeAffineMatrix(worldTransformBlock->scale_, worldTransformBlock->rotation_, worldTransformBlock->translation_);
 
-			worldTransformBlock->TransferMatrix();
-		}
-	}
-	// デバックカメラの更新
-	debugCamera_->Update();
+//  GameScene::Update
+//  毎フレーム呼ばれる更新処理。入力/カメラ/プレイヤーなどのロジックを進める。
 
-	#ifdef  _DEBUG
+void GameScene::Update() {
+#ifdef _DEBUG
+	// --- 0キー：デバッグカメラとゲームカメラの切替 ---
 	if (Input::GetInstance()->TriggerKey(DIK_0)) {
 		isDebugCameraActive_ = !isDebugCameraActive_;
 	}
-#endif //  _DEBUG
+#endif
 
-	//カメラの処理
 	if (isDebugCameraActive_) {
+		// --- デバッグカメラ有効時：自由視点で見る ---
 		debugCamera_->Update();
+
+		// DebugCamera が持つ Camera を直接 Game 用 Camera に反映
 		camera_.matView = debugCamera_->GetCamera().matView;
 		camera_.matProjection = debugCamera_->GetCamera().matProjection;
 		camera_.TransferMatrix();
 	} else {
-		camera_.UpdateMatrix();
+		// --- ゲームカメラ（レールカメラ）での自動前進 ---
+		// スプラインに沿って視点が進み、曲率に応じて軽く傾く（バンク）。
+		railCam_.Update();
 	}
+
+	// --- プレイヤー移動（画面内 XY） ---
+	// レールの「スクリーン平面」を基準に、W/A/S/D で自機を移動。
+	// A/D ダブルタップで「見た目のロール演出」（無敵・弾消しは Step 3 で付与予定）。
+	player_.Update(railCam_);
 }
 
-void GameScene::Draw() 
-{ 
-	//DirectXCommonインスタンスの取得
-	DirectXCommon* dxCommon = DirectXCommon::GetInstance(); 
-	//スプライト描画後処理
+
+//  GameScene::Draw
+//  毎フレーム呼ばれる描画処理。2D（UI）→3D（モデル）の順に描く。
+
+void GameScene::Draw() {
+	// --- DirectX コマンドリストの取得 ---
+	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
+
+	//==================== 2D描画（スプライト/UI） ====================
 	Sprite::PreDraw(dxCommon->GetCommandList());
 
-	/*spreite_->Draw();*/
+	// ここに HP/スコア/チェイン/チャージゲージ等の UI を描く予定（Step 2 で追加）。
 
-	//スプライト描画後処理
 	Sprite::PostDraw();
 
-	//3Dモデル描画前処理
+	//==================== 3D描画（モデル） ============================
 	Model::PreDraw(dxCommon->GetCommandList());
 
-	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
-		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
-			if (!worldTransformBlock)
-				continue;
-			modelBlock_->Draw(*worldTransformBlock, camera_);
-			
-			
-		}
-	}
-	
-	////3Dモデル描画
-	//model_->Draw(worldTransform_, camera_, textureHandle_);
+	// --- プレイヤー機体の描画 ---
+	player_.Draw(camera_);
 
-	//3Dモデル描画後処理
+	// 将来的には：敵/弾/背景オブジェクト/リング/障害物などもここで描画していく。
+
 	Model::PostDraw();
-	
 }
 
-GameScene::~GameScene() 
-{
-	for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
-		for (WorldTransform* worldTransformBlock : worldTransformBlockLine) {
-			delete worldTransformBlock;
+
+//  GameScene::~GameScene
+//  シーン終了時の後片付け。new したものを解放。
+
+GameScene::~GameScene() {
+	// --- もしグリッド状のブロック等を new していれば安全に解放 ---
+	for (auto& line : worldTransformBlocks_) {
+		for (auto* wt : line) {
+			delete wt;
 		}
 	}
-	
 	worldTransformBlocks_.clear();
-	delete spreite_; 
+
+	// --- Sprite / 汎用 Model は生成していなければ nullptr のままなので delete 安全 ---
+	delete spreite_;
 	delete model_;
+
+	// --- デバッグカメラ解放 ---
 	delete debugCamera_;
+
+	// --- 機体モデルの所有関係に注意 ---
+	// KamataEngine 側でリソース管理（キャッシュ/参照カウント）している場合は delete 不要。
+	// もし明示的 delete が必要な設計なら、ここで delete modelShip_; を呼んでください。
+	// delete modelShip_;
 }

@@ -1,24 +1,33 @@
 #pragma once
 #include <vector>
 #include"KamataEngine.h"
+#include "Spline.h"
+#include "RailCamera.h"
+#include "Player.h"
+using namespace KamataEngine;
+
 // ゲームシーン
 class GameScene {
 public:
 	//3Dモデル
-	KamataEngine::Model* model_ = nullptr;
+	Model* model_ = nullptr;
 	//スプライト
-	KamataEngine::Sprite* spreite_ = nullptr;
+	Sprite* spreite_ = nullptr;
 	//ワールドトランスフォーム
-	KamataEngine::WorldTransform worldTransform_;
+	WorldTransform worldTransform_;
 	//カメラ
-	KamataEngine::Camera camera_;
+	Camera camera_;
 	//デバックカメラ
-	/*KamataEngine::DebugCamera* debugCamera_ = nullptr;*/
+	/*DebugCamera* debugCamera_ = nullptr;*/
 	bool isDebugCameraActive_ = false;
-	KamataEngine::DebugCamera* debugCamera_ = nullptr;
-	std::vector<std::vector<KamataEngine::WorldTransform*>> worldTransformBlocks_;
+	DebugCamera* debugCamera_ = nullptr;
+	std::vector<std::vector<WorldTransform*>> worldTransformBlocks_;
 
-	KamataEngine::Model* modelBlock_;
+	Spline spline_;
+	RailCamera railCam_;
+	Player player_;
+	Model* modelPlayer_;
+
 	//初期化
 	void Initialize();
 
