@@ -15,6 +15,7 @@ enum class Scene {
 	kTitle,
 	kGame,
 };
+
 // 現在シーン（型）
 Scene scene = Scene::kUnknown;
 
@@ -127,7 +128,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 		// ImGui描画
 		imguiManager->Draw();
-		imguiManager->Draw();
+		
 
 		// 描画終了
 		dxCommon->PostDraw();

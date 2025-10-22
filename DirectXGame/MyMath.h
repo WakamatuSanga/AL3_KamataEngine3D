@@ -55,3 +55,12 @@ float EaseInOut(float x1, float x2, float t);
 bool IsCollision(const AABB& aabb1, const AABB& aabb2);
 
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
+
+const Vector3 operator-(const Vector3& v);                   // 単項 -
+const Vector3 operator-(const Vector3& a, const Vector3& b); // 二項 -
+const Vector3 operator*(float s, const Vector3& v);          // 左スカラー × ベクトル（あると便利）
+
+float Dot(const Vector3& a, const Vector3& b);
+Vector3 Cross(const Vector3& a, const Vector3& b);
+float Length(const Vector3& v);
+Vector3 Normalize(const Vector3& v);

@@ -1,5 +1,7 @@
 #include "GameScene.h"
-#include "Math.h"
+#include "MyMath.h"
+#include <numbers>
+#include <cfloat>
 
 using namespace KamataEngine;
 
@@ -71,8 +73,11 @@ void GameScene::Initialize() {
 
 	// プレイヤーモデル
 	player_model_ = Model::CreateFromOBJ("player");
-	Vector3 playerPosition = mapChipField_->GetMapChipPositionByIndex(2, 18);
-
+	Vector3 playerPosition{};
+	if (!mapChipField_->GetPlayerSpawnPosition(playerPosition)) {
+		// フォールバック（見つからない時は従来の座標など）
+		playerPosition = mapChipField_->GetMapChipPositionByIndex(2, 18);
+	}
 	// 02_07 スライド5枚目
 	player_->SetMapChipField(mapChipField_);
 
@@ -125,6 +130,50 @@ void GameScene::Initialize() {
 	fade_ = new Fade();
 	fade_->Initialize();
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
+}
+
+void GameScene::FitCameraToBlocks(float margin) {
+	// ブロック群のAABBを計算
+	float minX = FLT_MAX, maxX = -FLT_MAX;
+	float minY = FLT_MAX, maxY = -FLT_MAX;
+
+	for (auto& line : worldTransformBlocks_) {
+		for (WorldTransform* wt : line) {
+			if (!wt)
+				continue;
+			const float halfW = MapChipField::kBlockWidth * 0.5f;
+			const float halfH = MapChipField::kBlockHeight * 0.5f;
+			const auto& p = wt->translation_;
+			minX = min(minX, p.x - halfW);
+			maxX = max(maxX, p.x + halfW);
+			minY = min(minY, p.y - halfH);
+			maxY = max(maxY, p.y + halfH);
+		}
+	}
+	if (minX == FLT_MAX)
+		return; // ブロック無し
+
+	// 外枠サイズ＋余白
+	const float W = (maxX - minX) * margin;
+	const float H = (maxY - minY) * margin;
+
+	// 画面中心に合わせる
+	const float cx = (minX + maxX) * 0.5f;
+	const float cy = (minY + maxY) * 0.5f;
+
+	// 透視投影のFOVとアスペクト
+	const float aspect = WinApp::kWindowWidth / static_cast<float>(WinApp::kWindowHeight);
+	const float fovY = std::numbers::pi_v<float> / 4.0f; // 45°（エンジン既定に合わせて必要なら変更）
+	const float fovX = 2.0f * std::atan(std::tan(fovY * 0.5f) * aspect);
+
+	// 幅・高さの両方が収まる距離（手前向きZがマイナスなら -distance）
+	const float distY = (H * 0.5f) / std::tan(fovY * 0.5f);
+	const float distX = (W * 0.5f) / std::tan(fovX * 0.5f);
+	const float distance = max(distX, distY);
+
+	camera_.rotation_ = {0, 0, 0};
+	camera_.translation_ = {cx, cy, -distance};
+	camera_.UpdateMatrix();
 }
 
 // 02_12 10枚目 GameScene::Update関数で呼び出しておく
@@ -259,13 +308,17 @@ void GameScene::Update() {
 			debugCamera_->Update();
 			camera_.matView = debugCamera_->GetCamera().matView;
 			camera_.matProjection = debugCamera_->GetCamera().matProjection;
-			// ビュープロジェクション行列の転送
 			camera_.TransferMatrix();
 		} else {
-			// ビュープロジェクション行列の更新と転送
-			camera_.UpdateMatrix();
+			if (showWholeStage_) {
+				// コントローラ更新をスキップして、地形にフィット
+				FitCameraToBlocks(1.1f);
+			} else {
+				// 通常は追従カメラ
+				CController_->Update();
+			}
 		}
-
+		//FitCameraToWholeStage(1.05f);
 		//		UpdateBlocks();
 		// ブロックの更新
 		for (std::vector<WorldTransform*>& worldTransformBlockLine : worldTransformBlocks_) {
@@ -464,4 +517,30 @@ void GameScene::CheckAllCollisions() {
 		}
 	}
 #pragma endregion
+}
+
+// 画面にステージ全体をちょうど収める（透視投影）
+void GameScene::FitCameraToWholeStage(float margin) {
+	// マップの実寸
+	const float W = mapChipField_->GetNumBlockHorizontal() * MapChipField::kBlockWidth;
+	const float H = mapChipField_->GetNumBlockVirtical() * MapChipField::kBlockHeight;
+
+	// ステージ中心（ブロックが原点から並ぶ前提）
+	const float cx = (W - MapChipField::kBlockWidth) * 0.5f;
+	const float cy = (H - MapChipField::kBlockHeight) * 0.5f;
+
+	// 画面のアスペクトと想定FOV（エンジン既定が45°ならこれでOK。違う場合は合わせてください）
+	const float aspect = WinApp::kWindowWidth / static_cast<float>(WinApp::kWindowHeight);
+	const float fovY = std::numbers::pi_v<float> / 4.0f; // = 45°
+	const float fovX = 2.0f * std::atan(std::tan(fovY * 0.5f) * aspect);
+
+	// 幅・高さの両方が収まる距離を計算
+	const float distY = (H * 0.5f) / std::tan(fovY * 0.5f);
+	const float distX = (W * 0.5f) / std::tan(fovX * 0.5f);
+	float distance = max(distX, distY) * margin; // 少しだけ余白
+
+	// カメラ配置（+Z/-Z はプロジェクションの向きに合わせてください）
+	camera_.rotation_ = {0, 0, 0};
+	camera_.translation_ = {cx, cy, -distance}; // もし映らなければ -distance を +distance に
+	camera_.UpdateMatrix();
 }

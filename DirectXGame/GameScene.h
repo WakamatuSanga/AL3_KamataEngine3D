@@ -8,6 +8,7 @@
 #include "Player.h"
 #include "skydome.h"
 #include <vector>
+#include <list>
 
 // ゲームシーンクラス
 class GameScene {
@@ -42,6 +43,11 @@ private:
 	// 02_12 4枚目 ゲームの現在フェーズ（変数）
 	Phase phase_;
 
+	// ブロック群が画面に入る距離へ調整
+	void FitCameraToBlocks(float margin = 1.1f);
+	// 全景表示モード（任意。トグル用）
+	bool showWholeStage_ = true;
+
 	// 02_12 9枚目
 	void ChangePhase();
 
@@ -59,6 +65,8 @@ private:
 	uint32_t soundDataHandle_ = 0;
 	// 音声再生ハンドル
 	uint32_t voiceHandle_ = 0;
+	// ステージ全体を収める
+	void FitCameraToWholeStage(float margin = 1.05f); 
 
 	// ここから02_01からの追加
 	//  プレイヤー

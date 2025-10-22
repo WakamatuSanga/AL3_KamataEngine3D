@@ -163,7 +163,7 @@ void Player::CheckMapCollisionDown(CollisionMapInfo& info) {
 
 	// 左下の判定
 	MapChipField::IndexSet indexSet;
-	indexSet = mapChipField_->GetMapChipIndexSetByPosition(positionsNew[kRightBottom]);
+	indexSet = mapChipField_->GetMapChipIndexSetByPosition(positionsNew[kLeftBottom]);
 	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
 
 	if (mapChipType == MapChipType::kBlock) {
@@ -171,7 +171,7 @@ void Player::CheckMapCollisionDown(CollisionMapInfo& info) {
 	}
 
 	// 右下点の判定
-	indexSet = mapChipField_->GetMapChipIndexSetByPosition(positionsNew[kLeftBottom]);
+	indexSet = mapChipField_->GetMapChipIndexSetByPosition(positionsNew[kRightBottom]);
 	mapChipType = mapChipField_->GetMapChipTypeByIndex(indexSet.xIndex, indexSet.yIndex);
 
 	if (mapChipType == MapChipType::kBlock) {

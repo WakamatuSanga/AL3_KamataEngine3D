@@ -169,3 +169,29 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	result.z /= w;
 	return result;
 }
+
+const Vector3 operator-(const Vector3& v) { return Vector3{-v.x, -v.y, -v.z}; }
+
+const Vector3 operator-(const Vector3& a, const Vector3& b) {
+	Vector3 t(a);
+	return t -= b;
+}
+
+const Vector3 operator*(float s, const Vector3& v) { // 左スカラー × ベクトル
+	return Vector3{v.x * s, v.y * s, v.z * s};
+}
+
+float Dot(const Vector3& a, const Vector3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+
+Vector3 Cross(const Vector3& a, const Vector3& b) { return Vector3{a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x}; }
+
+float Length(const Vector3& v) { return std::sqrt(Dot(v, v)); }
+
+Vector3 Normalize(const Vector3& v) {
+	float len = Length(v);
+	if (len <= 1e-6f)
+		return Vector3{0, 0, 0};
+	Vector3 n(v);
+	n /= len;
+	return n;
+}

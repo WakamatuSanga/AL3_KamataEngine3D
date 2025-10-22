@@ -9,8 +9,9 @@
 using namespace KamataEngine;
 
 enum class MapChipType {
-	kBlank, // 空白
-	kBlock, // ブロック
+	kBlank, // 空白 = 0
+	kBlock, // ブロック = 1
+	kPlayer, // プレイヤー開始 = 2
 };
 
 struct MapChipData {
@@ -31,7 +32,8 @@ public:
 		float bottom; // 下端
 		float top;    // 上端
 	};
-
+	// CSV上の「2（kPlayer）」の最初の1個をワールド座標で返す。見つからなければ false。
+	bool GetPlayerSpawnPosition(Vector3& out) const;
 	static inline const float kBlockWidth = 1.0f;
 	static inline const float kBlockHeight = 1.0f;
 
@@ -39,16 +41,16 @@ public:
 
 	void LoadMapChipCsv(const std::string& filePath);
 
-	Vector3 GetMapChipPositionByIndex(uint32_t xIndex, uint32_t yIndex);
-	MapChipType GetMapChipTypeByIndex(uint32_t xIndex, uint32_t yIndex);
+	Vector3 GetMapChipPositionByIndex(uint32_t xIndex, uint32_t yIndex) const;
+	MapChipType GetMapChipTypeByIndex(uint32_t xIndex, uint32_t yIndex) const;
 
 	uint32_t GetNumBlockVirtical() const { return kNumBlockVirtical; }
 	uint32_t GetNumBlockHorizontal() const { return kNumBlockHorizontal; }
 
 	// 02_07 スライド22枚目
-	IndexSet GetMapChipIndexSetByPosition(const Vector3& position);
+	IndexSet GetMapChipIndexSetByPosition(const Vector3& position) const;
 	// 02_07 スライド33枚目
-	Rect GetRectByIndex(uint32_t xIndex, uint32_t yIndex);
+	Rect GetRectByIndex(uint32_t xIndex, uint32_t yIndex) const;
 
 private:
 	static inline const uint32_t kNumBlockVirtical = 20;
