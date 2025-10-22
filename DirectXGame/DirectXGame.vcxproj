@@ -106,10 +106,12 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Bullet.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyMath.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="PlayerShooter.cpp" />
     <ClCompile Include="RailCamera.cpp" />
     <ClCompile Include="Spline.cpp" />
   </ItemGroup>
@@ -189,10 +191,12 @@
     <None Include="Resources\shaders\Sprite.hlsli" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Bullet.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="MyMath.h" />
     <ClInclude Include="Player.h" />
     <ClInclude Include="PlayerMovement.h" />
+    <ClInclude Include="PlayerShooter.h" />
     <ClInclude Include="RailCamera.h" />
     <ClInclude Include="Spline.h" />
   </ItemGroup>
