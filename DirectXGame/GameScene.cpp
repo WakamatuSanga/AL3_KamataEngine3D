@@ -1,5 +1,6 @@
 #include "GameScene.h"
 #include "MyMath.h" // MakeAffineMatrix など、行列/ベクトルユーティリティ
+#include <cmath>
 using namespace KamataEngine;
 
 
@@ -44,6 +45,11 @@ void GameScene::Initialize() {
 	player_.SetViewPlaneDist(8.0f);
 	player_.SetScreenBiasY(-0.55f);
 
+
+	// --- 敵の仮モデル---
+	modelEnemy_ = Model::CreateFromOBJ("cube");
+	enemyManager_.Initialize(modelEnemy_);
+
 	// --- デバッグカメラ（0キーで切替） ---
 	// シーンの見回し・当たり判定の目視確認などに便利。リリース時には無効化でOK。
 	debugCamera_ = new DebugCamera(1280, 720);
@@ -51,6 +57,38 @@ void GameScene::Initialize() {
 	// worldTransformBlocks_ 等のステージ配置テストは、必要になった段階で戻して使ってください。
 }
 
+// 球同士の当たり判定（距離の2乗で比較）
+static bool SphereHit(const KamataEngine::Vector3& aPos, float aR, const KamataEngine::Vector3& bPos, float bR) {
+	using namespace KamataEngine;
+	Vector3 d = {aPos.x - bPos.x, aPos.y - bPos.y, aPos.z - bPos.z};
+	float dist2 = d.x * d.x + d.y * d.y + d.z * d.z;
+	float r = aR + bR;
+	return dist2 <= (r * r);
+}
+
+void GameScene::CheckCollisionPlayerBulletsVsEnemies() {
+	const auto& bullets = player_.GetBullets();
+	const auto& enemies = enemyManager_.GetEnemies();
+
+	for (Enemy* e : enemies) {
+		if (!e || e->IsDead())
+			continue;
+
+		for (Bullet* b : bullets) {
+			if (!b || b->IsDead())
+				continue;
+
+			if (SphereHit(e->GetPosition(), e->GetRadius(), b->GetPosition(), b->GetRadius())) {
+				// ヒット！
+				e->Damage(1);          // とりあえず1ダメージで即死
+				player_.KillBullet(b); // 弾は消す
+
+				// 同じ弾で複数の敵に当たらないように break
+				break;
+			}
+		}
+	}
+}
 
 //  GameScene::Update
 //  毎フレーム呼ばれる更新処理。入力/カメラ/プレイヤーなどのロジックを進める。
@@ -76,11 +114,16 @@ void GameScene::Update() {
 		// スプラインに沿って視点が進み、曲率に応じて軽く傾く（バンク）。
 		railCam_.Update();
 	}
-
+	const float dt = 1.0f / 60.0f;
 	// --- プレイヤー移動（画面内 XY） ---
 	// レールの「スクリーン平面」を基準に、W/A/S/D で自機を移動。
 	// A/D ダブルタップで「見た目のロール演出」（無敵・弾消しは Step 3 で付与予定）。
 	player_.Update(railCam_);
+
+	// 敵の更新（カメラ基準・奥から手前へ）
+	enemyManager_.Update(railCam_, dt);
+
+	CheckCollisionPlayerBulletsVsEnemies();
 }
 
 
@@ -103,6 +146,8 @@ void GameScene::Draw() {
 
 	// --- プレイヤー機体の描画 ---
 	player_.Draw(camera_);
+	// --- 敵機体の描画 ---
+	enemyManager_.Draw(camera_);
 
 	// 将来的には：敵/弾/背景オブジェクト/リング/障害物などもここで描画していく。
 

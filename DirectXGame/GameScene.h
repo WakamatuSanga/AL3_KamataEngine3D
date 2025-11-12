@@ -4,6 +4,7 @@
 #include "Spline.h"
 #include "RailCamera.h"
 #include "Player.h"
+#include "EnemyManager.h"
 using namespace KamataEngine;
 
 // ゲームシーン
@@ -27,6 +28,8 @@ public:
 	RailCamera railCam_;
 	Player player_;
 	Model* modelPlayer_;
+	EnemyManager enemyManager_;
+	Model* modelEnemy_ = nullptr;
 
 	//初期化
 	void Initialize();
@@ -43,4 +46,6 @@ public:
 private:
 	// テクスチャハンドル
 	uint32_t textureHandle_ = 0;
+
+	void CheckCollisionPlayerBulletsVsEnemies();
 };
