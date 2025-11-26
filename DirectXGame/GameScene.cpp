@@ -5,6 +5,19 @@ using namespace KamataEngine;
 void GameScene::Initialize() {
 	// カメラ
 	camera_.Initialize();
+
+	// 地面
+	ground_.UseBehindCameraRecycle(/*backMore*/ 80.0f);
+	ground_.SetCameraZ(0.0f); 
+	groundModel_ = Model::CreateFromOBJ("ground");
+	ground_.InitializeOBJ(
+	    groundModel_,
+	    /*stepZ*/ 20.0f, // OBJ1枚の奥行に合わせて調整
+	    /*count*/ 16,
+	    /*y*/ -6.0f,
+	    /*speed*/ 0.6f,
+	    /*uniformScale*/ 1.0f);
+
 	// プレイヤーモデル（OBJ名はプロジェクトに合わせて）
 	playerModel_ = Model::CreateFromOBJ("player"); // 無ければ "cube" など
 	player_.Initialize(playerModel_);
@@ -37,6 +50,10 @@ void GameScene::Update() {
 	skydome_.Update();
 	// プレイヤー
 	player_.Update();
+	ground_.SetPlayerX(player_.GetPosition().x);
+	// 地面更新
+	ground_.Update();
+	ground_.SetCameraZ(/*cameraのワールドZ*/ 0.0f);
 	// エネミー群
 	if (enemy_) {
 		enemy_->Update();
@@ -167,6 +184,8 @@ void GameScene::Draw() {
 	}
 	// 天球
 	skydome_.Draw(camera_);
+	// 地面
+	ground_.Draw(camera_);
 	Model::PostDraw();
 }
 
@@ -174,6 +193,9 @@ GameScene::~GameScene() {
 
 	delete modelSkydome_;
 	modelSkydome_ = nullptr;
+
+	delete groundModel_;
+	groundModel_ = nullptr;
 
 	delete enemy_;
 	enemy_ = nullptr;

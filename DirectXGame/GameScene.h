@@ -5,6 +5,7 @@
 #include "EnemyAimer.h"
 #include "EnemyHoming.h"
 #include "Skydome.h"
+#include "Ground.h"
 class GameScene {
 public:
 	void Initialize();
@@ -34,6 +35,10 @@ private:
 	// 天球
 	Skydome skydome_;
 	KamataEngine::Model* modelSkydome_ = nullptr;
+
+	// 地面
+	Ground ground_;
+	KamataEngine::Model* groundModel_ = nullptr;
 
 	// 総当たり判定
 	void CheckAllCollisions();
