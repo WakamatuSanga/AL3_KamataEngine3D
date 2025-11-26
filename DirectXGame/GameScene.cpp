@@ -7,16 +7,25 @@ void GameScene::Initialize() {
 	camera_.Initialize();
 
 	// 地面
-	ground_.UseBehindCameraRecycle(/*backMore*/ 80.0f);
-	ground_.SetCameraZ(0.0f); 
-	groundModel_ = Model::CreateFromOBJ("ground");
+	// OBJ方式の例（凹凸OBJを横3列で流す）:
+	groundModel_ = KamataEngine::Model::CreateFromOBJ("ground");
 	ground_.InitializeOBJ(
 	    groundModel_,
-	    /*stepZ*/ 20.0f, // OBJ1枚の奥行に合わせて調整
-	    /*count*/ 16,
-	    /*y*/ -6.0f,
+	    /*stepZ*/ 20.0f,
+	    /*countZ*/ 16,
+	    /*y*/ -7.0f,
 	    /*speed*/ 0.6f,
-	    /*uniformScale*/ 1.0f);
+	    /*uniformScale*/ 1.0f,
+	    /*columns*/ 3,
+	    /*colSpacingX*/ 10.0f // 列間隔（見た目に合わせて調整）
+	);
+
+	// 初期位置をカメラ手前から並べる（任意）
+	ground_.StartAtCameraFront(/*cameraZ*/ 0.0f, /*tilesInFront*/ 4, /*margin*/ 2.0f);
+
+	// カメラよりもっと後ろまで行ってから再配置（任意）
+	ground_.UseBehindCameraRecycle(80.0f);
+	ground_.SetCameraZ(0.0f); // Update前に毎フレーム
 
 	// プレイヤーモデル（OBJ名はプロジェクトに合わせて）
 	playerModel_ = Model::CreateFromOBJ("player"); // 無ければ "cube" など
