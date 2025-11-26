@@ -21,6 +21,7 @@ public:
 	const KamataEngine::Vector3& GetPosition() const { return worldTransform_.translation_; }
 	void OnCollision() { isDead_ = true; }
 	float GetCollisionRadius() const;
+	void SetLifeTime(int frames) { lifeTime_ = frames; }
 
 private:
 	KamataEngine::Model* model_ = nullptr;
@@ -30,12 +31,13 @@ private:
 	float turn_ = 0.01f; // 追尾割合（Slerp の t）
 	int life_ = 360;     // 寿命フレーム
 	bool isDead_ = false;
-
+	
 	// ホーミング固定ロジック用
 	bool homingActive_ = true;    // true: 誘導中 / false: 固定直進
 	float fadeStartDist_ = 12.0f; // この距離以下で徐々に turn を弱める
 	float lockDist_ = 6.0f;       // この距離以下で完全にホーミング停止（直進固定）
-
+	int lifeTimer_ = 0;
+	int lifeTime_ = 120; // だいたい2秒
 	const Player* player_ = nullptr;
 
 	void FaceToVelocity_(); // 見た目を進行方向に

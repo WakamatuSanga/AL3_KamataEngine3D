@@ -53,10 +53,9 @@ void EnemyAimer::FireAimedBullet() {
 void EnemyAimer::RespawnIfFar() {
 	const auto& p = worldTransform_.translation_;
 	if (p.z < -40.0f || std::fabs(p.x) > 40.0f || std::fabs(p.y) > 40.0f) {
-		for (auto* b : bullets_) {
-			delete b;
-		}
-		bullets_.clear();
+		// 敵だけ再配置（弾は残す）
+		worldTransform_.translation_ = {5.0f, 0.0f, 25.0f};
+		shotTimer_ = 0;
 
 		worldTransform_.translation_ = {5.0f, 0.0f, 25.0f};
 		shotTimer_ = 0;

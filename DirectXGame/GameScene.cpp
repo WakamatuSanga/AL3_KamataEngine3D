@@ -7,13 +7,12 @@ void GameScene::Initialize() {
 	camera_.Initialize();
 
 	// 地面
-	// OBJ方式の例（凹凸OBJを横3列で流す）:
 	groundModel_ = KamataEngine::Model::CreateFromOBJ("ground");
 	ground_.InitializeOBJ(
 	    groundModel_,
 	    /*stepZ*/ 20.0f,
 	    /*countZ*/ 16,
-	    /*y*/ -7.0f,
+	    /*y*/ -9.0f,
 	    /*speed*/ 0.6f,
 	    /*uniformScale*/ 1.0f,
 	    /*columns*/ 3,

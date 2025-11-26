@@ -34,6 +34,8 @@ public:
         };
 	}
 
+	void SetLifeTime(int frames) { lifeTime_ = frames; }
+
 private:
 	KamataEngine::WorldTransform worldTransform_;
 	KamataEngine::Model* model_ = nullptr;

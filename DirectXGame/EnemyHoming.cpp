@@ -42,15 +42,14 @@ void EnemyHoming::FireHomingBullet_() {
 	auto* b = new EnemyHomingBullet();
 	KamataEngine::Vector3 spawn = worldTransform_.translation_;
 	b->Initialize(bulletModel_, spawn, bulletSpeed_, turnRate_, player_);
+	b->SetLifeTime(90);
 	bullets_.push_back(b);
 }
 
 void EnemyHoming::RespawnIfFar_() {
 	const auto& p = worldTransform_.translation_;
 	if (p.z < -40.0f || std::fabs(p.x) > 40.0f || std::fabs(p.y) > 40.0f) {
-		for (auto* b : bullets_)
-			delete b;
-		bullets_.clear();
+		
 		// 位置リセット（軽くランダムでもOK）
 		worldTransform_.translation_ = {-4.0f, 1.0f, 25.0f};
 		shotTimer_ = 0;

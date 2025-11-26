@@ -39,6 +39,7 @@ void Enemy::FireBullet() {
 
 	EnemyBullet* b = new EnemyBullet();
 	b->Initialize(bulletModel_, worldTransform_.translation_, vel);
+	b->SetLifeTime(90);
 	bullets_.push_back(b);
 }
 
@@ -53,11 +54,11 @@ void Enemy::UpdateApproach() {
 	worldTransform_.translation_ += approachVelocity_;
 
 	// 一定位置まで来たら離脱へ
-	if (worldTransform_.translation_.z < 0.0f) {
+	if (worldTransform_.translation_.z < -30.0f) {
 		phase_ = Phase::Leave;
 	}
 
-	// ★ 一定間隔で発射
+	// 一定間隔で発射
 	++shotTimer_;
 	if (shotTimer_ >= shotInterval_) {
 		shotTimer_ = 0;
@@ -68,19 +69,19 @@ void Enemy::UpdateApproach() {
 void Enemy::UpdateLeave() {
 	worldTransform_.translation_ += leaveVelocity_;
 
-	// ★ std::fabsf に
+	// std::fabsf に
 	if (worldTransform_.translation_.z < -40.0f || std::fabsf(worldTransform_.translation_.x) > 40.0f || std::fabsf(worldTransform_.translation_.y) > 40.0f) {
 		Respawn();
 	}
 }
 void Enemy::Respawn() {
-	// 弾を全部消す
-	for (auto* b : bullets_) {
-		delete b;
-	}
-	bullets_.clear();
+	// 位置と状態だけリセット（弾は残す）
+	worldTransform_.translation_ = {0.0f, 0.0f, 25.0f};
+	worldTransform_.rotation_ = {0.0f, 0.0f, 0.0f};
+	phase_ = Phase::Approach;
+	shotTimer_ = 0;
 
-	// ★ 出現位置（少しランダム化したい場合）
+	// 出現位置（少しランダム化したい場合）
 	//    例：X[-6,+6], Y[-3,+3], Z=+25
 	auto frand = [](float a, float b) { return a + (b - a) * (float)rand() / (float)RAND_MAX; };
 	worldTransform_.translation_ = {frand(-6.0f, 6.0f), frand(-3.0f, 3.0f), 25.0f};

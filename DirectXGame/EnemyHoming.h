@@ -21,7 +21,7 @@ private:
 	// 弾モデルは内部で生成（Enemy/EnemyAimer と同じ所有ポリシー）
 	KamataEngine::Model* bulletModel_ = nullptr;
 	std::vector<EnemyHomingBullet*> bullets_;
-
+	
 	Player* player_ = nullptr;
 
 	// 移動
