@@ -1,29 +1,48 @@
 #pragma once
 #include "KamataEngine.h"
-#include "PlayerMovement.h"
-#include "RailCamera.h"
-using namespace KamataEngine;
+#include "PlayerBullet.h"
+#include <vector>
 
 class Player {
 public:
-	void Initialize(Model* model) {
-		model_ = model;
-		world_.Initialize();
-		world_.scale_ = {0.7f, 0.7f, 0.7f};
-		move_.Initialize();
-	}
-	void Update(const RailCamera& rc) { lastRollZ_ = move_.Update(world_, rc); }
-	void Draw(Camera& cam) {
-		if (model_)
-			model_->Draw(world_, cam);
-	}
+	void Initialize(KamataEngine::Model* model);
+	void Update();
+	void Draw(KamataEngine::Camera& camera);
 
-	void SetViewPlaneDist(float d) { move_.SetViewPlaneDist(d); }
-	void SetScreenBiasY(float frac) { move_.SetScreenBiasY(frac); }
+	const KamataEngine::Vector3& GetPosition() const { return worldTransform_.translation_; }
+	// 前方単位ベクトル（+Z 基準）
+	KamataEngine::Vector3 GetForwardDir() const {
+		using namespace KamataEngine;
+		Matrix4x4 rx = MakeRotateXMatrix(worldTransform_.rotation_.x);
+		Matrix4x4 ry = MakeRotateYMatrix(worldTransform_.rotation_.y);
+		Matrix4x4 rz = MakeRotateZMatrix(worldTransform_.rotation_.z);
+		Matrix4x4 r = rz * rx * ry;
+		Vector3 fwd = TransformNormal({0, 0, 1}, r);
+		return Normalized(fwd);
+	}
+	// 当たり時コールバック（今回何もしない）
+	void OnCollision() {}
+
+	// 自弾リストの貸出し
+	const std::vector<PlayerBullet*>& GetBullets() const { return bullets_; }
+	~Player();
+	float GetCollisionRadius() const;
 
 private:
-	WorldTransform world_{};
-	Model* model_ = nullptr;
-	PlayerMovement move_;
-	float lastRollZ_ = 0.0f;
+	KamataEngine::WorldTransform worldTransform_;
+	KamataEngine::Model* model_ = nullptr;
+	KamataEngine::Input* input_ = nullptr;
+
+	// 弾用
+	KamataEngine::Model* bulletModel_ = nullptr;
+	std::vector<PlayerBullet*> bullets_;
+
+	// マウス長押し連射制御
+	bool mouseHeldPrev_ = false;
+	int holdFrames_ = 0;
+	int autoFireDelayFrames_ = 20;   // 長押し開始から何フレーム後に連射開始するか
+	int autoFireIntervalFrames_ = 5; // 連射間隔
+	int autoFireCounter_ = 0;        // ★ 追加：連射カウンタ（static廃止）
+
+	void SpawnBullet();
 };

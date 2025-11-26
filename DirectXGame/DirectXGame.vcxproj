@@ -106,12 +106,18 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Enemy.cpp" />
+    <ClCompile Include="EnemyAimer.cpp" />
+    <ClCompile Include="EnemyBullet.cpp" />
+    <ClCompile Include="EnemyHoming.cpp" />
+    <ClCompile Include="EnemyHomingBullet.cpp" />
     <ClCompile Include="GameScene.cpp" />
+    <ClCompile Include="Ground.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyMath.cpp" />
     <ClCompile Include="Player.cpp" />
-    <ClCompile Include="RailCamera.cpp" />
-    <ClCompile Include="Spline.cpp" />
+    <ClCompile Include="PlayerBullet.cpp" />
+    <ClCompile Include="Skydome.cpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Resources\shaders\TerrainPS.hlsl">
@@ -189,12 +195,17 @@
     <None Include="Resources\shaders\Sprite.hlsli" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Enemy.h" />
+    <ClInclude Include="EnemyAimer.h" />
+    <ClInclude Include="EnemyBullet.h" />
+    <ClInclude Include="EnemyHoming.h" />
+    <ClInclude Include="EnemyHomingBullet.h" />
     <ClInclude Include="GameScene.h" />
+    <ClInclude Include="Ground.h" />
     <ClInclude Include="MyMath.h" />
     <ClInclude Include="Player.h" />
-    <ClInclude Include="PlayerMovement.h" />
-    <ClInclude Include="RailCamera.h" />
-    <ClInclude Include="Spline.h" />
+    <ClInclude Include="PlayerBullet.h" />
+    <ClInclude Include="Skydome.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

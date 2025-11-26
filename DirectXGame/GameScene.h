@@ -1,46 +1,40 @@
 #pragma once
-#include <vector>
-#include"KamataEngine.h"
-#include "Spline.h"
-#include "RailCamera.h"
+#include "Enemy.h"
+#include "KamataEngine.h"
 #include "Player.h"
-using namespace KamataEngine;
-
-// ゲームシーン
+#include "EnemyAimer.h"
+#include "EnemyHoming.h"
+#include "Skydome.h"
 class GameScene {
 public:
-	//3Dモデル
-	Model* model_ = nullptr;
-	//スプライト
-	Sprite* spreite_ = nullptr;
-	//ワールドトランスフォーム
-	WorldTransform worldTransform_;
-	//カメラ
-	Camera camera_;
-	//デバックカメラ
-	/*DebugCamera* debugCamera_ = nullptr;*/
-	bool isDebugCameraActive_ = false;
-	DebugCamera* debugCamera_ = nullptr;
-	std::vector<std::vector<WorldTransform*>> worldTransformBlocks_;
-
-	Spline spline_;
-	RailCamera railCam_;
-	Player player_;
-	Model* modelPlayer_;
-
-	//初期化
 	void Initialize();
-
-	//更新
 	void Update();
-
-	//描画
 	void Draw();
-
-
 	~GameScene();
 
 private:
-	// テクスチャハンドル
-	uint32_t textureHandle_ = 0;
+	KamataEngine::Camera camera_;
+
+	// プレイヤー
+	Player player_;
+	KamataEngine::Model* playerModel_ = nullptr;
+
+	// 敵
+	Enemy* enemy_ = nullptr;
+	KamataEngine::Model* enemyModel_ = nullptr;
+
+	// 自機狙い敵
+	EnemyAimer* enemyAimer_ = nullptr;
+	KamataEngine::Model* enemyAimerModel_ = nullptr;
+
+	//ホーミング
+	 EnemyHoming* enemyHoming_ = nullptr;
+	KamataEngine::Model* enemyHomingModel_ = nullptr;
+
+	// 天球
+	Skydome skydome_;
+	KamataEngine::Model* modelSkydome_ = nullptr;
+
+	// 総当たり判定
+	void CheckAllCollisions();
 };

@@ -172,6 +172,50 @@ bool IsCollision(const AABB& aabb1, const AABB& aabb2) {
 	       (aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z);   // z軸
 }
 
+float Dot(const Vector3& a, const Vector3& b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+
+Vector3 TransformNormal(const Vector3& v, const Matrix4x4& m) {
+	// 3x3 部分だけで回す（平行移動は無視）
+	Vector3 r;
+	r.x = v.x * m.m[0][0] + v.y * m.m[1][0] + v.z * m.m[2][0];
+	r.y = v.x * m.m[0][1] + v.y * m.m[1][1] + v.z * m.m[2][1];
+	r.z = v.x * m.m[0][2] + v.y * m.m[1][2] + v.z * m.m[2][2];
+	return r;
+}
+
+Vector3 Slerp(const Vector3& v1, const Vector3& v2, float t) {
+	// 方向は球面補間
+	Vector3 n1 = Normalized(v1);
+	Vector3 n2 = Normalized(v2);
+
+	float d = std::clamp(Dot(n1, n2), -1.0f, 1.0f);
+
+	// ほぼ同方向なら Lerp で十分に安定
+	if (d > 0.9995f) {
+		return Lerp(v1, v2, t);
+	}
+
+	float theta = std::acos(d);
+	float sinTheta = std::sin(theta);
+	if (std::fabs(sinTheta) < 1e-5f) {
+		return Lerp(v1, v2, t);
+	}
+
+	float w1 = std::sin((1.0f - t) * theta) / sinTheta;
+	float w2 = std::sin(t * theta) / sinTheta;
+
+	Vector3 dir = {n1.x * w1 + n2.x * w2, n1.y * w1 + n2.y * w2, n1.z * w1 + n2.z * w2};
+
+	dir = Normalized(dir);
+
+	// 長さは線形補間（速度の大きさを自然に繋ぐ）
+	float len1 = Length(v1);
+	float len2 = Length(v2);
+	float len = Lerp(len1, len2, t);
+
+	return dir * len;
+}
+
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result; // w=1がデカルト座標系であるので(x,y,1)のベクトルとしてmatrixとの積をとる
 	result.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
