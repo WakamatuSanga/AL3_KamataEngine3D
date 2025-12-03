@@ -71,6 +71,61 @@ Matrix4x4 MakeRotateXMatrix(float theta) {
 	return result;
 }
 
+Matrix4x4 Inverse(const Matrix4x4& m) {
+	// 上左3x3（回転・拡大）と平行移動を取り出す
+	float a00 = m.m[0][0], a01 = m.m[0][1], a02 = m.m[0][2];
+	float a10 = m.m[1][0], a11 = m.m[1][1], a12 = m.m[1][2];
+	float a20 = m.m[2][0], a21 = m.m[2][1], a22 = m.m[2][2];
+	float tx = m.m[3][0], ty = m.m[3][1], tz = m.m[3][2];
+
+	// 3x3 の余因子（cofactor）
+	float c00 = (a11 * a22 - a12 * a21);
+	float c01 = -(a10 * a22 - a12 * a20);
+	float c02 = (a10 * a21 - a11 * a20);
+
+	float c10 = -(a01 * a22 - a02 * a21);
+	float c11 = (a00 * a22 - a02 * a20);
+	float c12 = -(a00 * a21 - a01 * a20);
+
+	float c20 = (a01 * a12 - a02 * a11);
+	float c21 = -(a00 * a12 - a02 * a10);
+	float c22 = (a00 * a11 - a01 * a10);
+
+	float det = a00 * c00 + a01 * c01 + a02 * c02;
+	const float eps = 1e-8f;
+	if (std::fabs(det) < eps) {
+		// 特異行列ガード（単位行列を返す）
+		Matrix4x4 id{};
+		id.m[0][0] = id.m[1][1] = id.m[2][2] = id.m[3][3] = 1.0f;
+		return id;
+	}
+	float invDet = 1.0f / det;
+
+	Matrix4x4 inv{};
+	// 3x3 逆行列（adj(A)^T / det）
+	inv.m[0][0] = c00 * invDet;
+	inv.m[0][1] = c10 * invDet;
+	inv.m[0][2] = c20 * invDet;
+	inv.m[0][3] = 0.0f;
+	inv.m[1][0] = c01 * invDet;
+	inv.m[1][1] = c11 * invDet;
+	inv.m[1][2] = c21 * invDet;
+	inv.m[1][3] = 0.0f;
+	inv.m[2][0] = c02 * invDet;
+	inv.m[2][1] = c12 * invDet;
+	inv.m[2][2] = c22 * invDet;
+	inv.m[2][3] = 0.0f;
+
+	// 平行移動の逆変換（row-major なので  -t * A^{-1}）
+	inv.m[3][0] = -(tx * inv.m[0][0] + ty * inv.m[1][0] + tz * inv.m[2][0]);
+	inv.m[3][1] = -(tx * inv.m[0][1] + ty * inv.m[1][1] + tz * inv.m[2][1]);
+	inv.m[3][2] = -(tx * inv.m[0][2] + ty * inv.m[1][2] + tz * inv.m[2][2]);
+	inv.m[3][3] = 1.0f;
+
+	return inv;
+}
+
+
 Matrix4x4 MakeRotateYMatrix(float theta) {
 	float sin = std::sin(theta);
 	float cos = std::cos(theta);
@@ -138,11 +193,10 @@ Matrix4x4 operator*(const Matrix4x4& m1, const Matrix4x4& m2) {
 // ワールドトランスフォーム更新(02_03の最後)
 void WorldTransformUpdate(WorldTransform& worldTransform) {
 
-	Matrix4x4 affin_mat = MakeAffineMatrix(worldTransform.scale_, worldTransform.rotation_, worldTransform.translation_);
-
-	worldTransform.matWorld_ = affin_mat;
-
-	// 定数バッファに転送する
+	worldTransform.matWorld_ = MakeAffineMatrix(worldTransform.scale_, worldTransform.rotation_, worldTransform.translation_);
+	if (worldTransform.parent_) {
+		worldTransform.matWorld_ *= worldTransform.parent_->matWorld_;
+    }
 	worldTransform.TransferMatrix();
 }
 
@@ -238,4 +292,58 @@ Vector3 Normalized(const Vector3& v) {
 		return {0.0f, 0.0f, 0.0f};
 	}
 	return {v.x / len, v.y / len, v.z / len};
+}
+
+// =====================================================
+// Catmull-Rom Spline
+// =====================================================
+
+// 区間 [P1-P2] の中で t(0～1) の位置を計算
+Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t) {
+	float t2 = t * t;
+	float t3 = t2 * t;
+
+	auto cr1 = [&](float p0, float p1, float p2, float p3) { return 0.5f * (2.0f * p1 + (-p0 + p2) * t + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t2 + (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3); };
+
+	Vector3 r;
+	r.x = cr1(p0.x, p1.x, p2.x, p3.x);
+	r.y = cr1(p0.y, p1.y, p2.y, p3.y);
+	r.z = cr1(p0.z, p1.z, p2.z, p3.z);
+	return r;
+}
+
+// controlPoints[0..N-1] (N>=4) 全体に対して t∈[0,1] から位置を求める
+Vector3 CatmullRomSpline(const std::vector<Vector3>& cps, float t) {
+	size_t n = cps.size();
+	if (n == 0) {
+		return {0, 0, 0};
+	}
+	if (n == 1) {
+		return cps[0];
+	}
+	if (n == 2) {
+		return Lerp(cps[0], cps[1], t);
+	}
+	if (n == 3) {
+		// 3点しかないときは両端を複製してごまかす
+		return CatmullRom(cps[0], cps[0], cps[1], cps[2], t);
+	}
+
+	// 有効区間 [P1 … P_(n-2)] を [0..1] に正規化している想定
+	if (t <= 0.0f)
+		return cps[1];
+	if (t >= 1.0f)
+		return cps[n - 2];
+
+	// 区間数 = n-3
+	float segF = t * float(n - 3);    // どのセグメントか
+	int seg = static_cast<int>(segF); // 0 ～ n-4
+	float localT = segF - float(seg); // 0～1 の局所 t
+
+	int i0 = seg;
+	int i1 = seg + 1;
+	int i2 = seg + 2;
+	int i3 = seg + 3;
+
+	return CatmullRom(cps[i0], cps[i1], cps[i2], cps[i3], localT);
 }

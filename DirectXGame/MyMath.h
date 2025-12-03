@@ -2,6 +2,7 @@
 #include "KamataEngine.h"
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 using namespace KamataEngine;
 
@@ -53,6 +54,8 @@ Matrix4x4 MakeRotateZMatrix(float theta);
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate);
 // アフィン変換行列の作成
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rot, const Vector3& translate);
+// アフィン（最後の行が [0,0,0,1]）の逆行列を返す
+Matrix4x4 Inverse(const Matrix4x4& m);
 
 // 代入演算子オーバーロード
 Matrix4x4& operator*=(Matrix4x4& lhm, const Matrix4x4& rhm);
@@ -84,3 +87,9 @@ float Length(const Vector3& v);
 
 // ベクトルを正規化する（方向だけにする）
 Vector3 Normalized(const Vector3& v);
+
+// 4点と区間パラメータ t(0～1) から Catmull-Rom 補間
+Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3, float t);
+
+// 制御点配列全体に対して 0～1 の t から位置を求める
+Vector3 CatmullRomSpline(const std::vector<Vector3>& controlPoints, float t);

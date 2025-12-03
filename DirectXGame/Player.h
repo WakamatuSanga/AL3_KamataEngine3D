@@ -1,6 +1,7 @@
 #pragma once
 #include "KamataEngine.h"
 #include "PlayerBullet.h"
+#include "MyMath.h"
 #include <vector>
 
 class Player {
@@ -9,15 +10,21 @@ public:
 	void Update();
 	void Draw(KamataEngine::Camera& camera);
 
-	const KamataEngine::Vector3& GetPosition() const { return worldTransform_.translation_; }
-	// 前方単位ベクトル（+Z 基準）
+	KamataEngine::Vector3 GetPosition() const {
+		using namespace KamataEngine;
+		Vector3 pos{
+		    worldTransform_.matWorld_.m[3][0],
+		    worldTransform_.matWorld_.m[3][1],
+		    worldTransform_.matWorld_.m[3][2],
+		};
+		return pos;
+	}
+
+	// 前方単位ベクトル（+Z 基準・親の回転も含める）
 	KamataEngine::Vector3 GetForwardDir() const {
 		using namespace KamataEngine;
-		Matrix4x4 rx = MakeRotateXMatrix(worldTransform_.rotation_.x);
-		Matrix4x4 ry = MakeRotateYMatrix(worldTransform_.rotation_.y);
-		Matrix4x4 rz = MakeRotateZMatrix(worldTransform_.rotation_.z);
-		Matrix4x4 r = rz * rx * ry;
-		Vector3 fwd = TransformNormal({0, 0, 1}, r);
+		// ワールド行列の 3x3 部分で (0,0,1) を回す
+		Vector3 fwd = TransformNormal({0, 0, 1}, worldTransform_.matWorld_);
 		return Normalized(fwd);
 	}
 	// 当たり時コールバック（今回何もしない）
@@ -27,7 +34,9 @@ public:
 	const std::vector<PlayerBullet*>& GetBullets() const { return bullets_; }
 	~Player();
 	float GetCollisionRadius() const;
-
+	void SetParent(const KamataEngine::WorldTransform* parent);
+	void SetLocalPosition(const KamataEngine::Vector3& local) { worldTransform_.translation_ = local; }
+	const KamataEngine::WorldTransform& GetWorldTransform() const { return worldTransform_; }
 private:
 	KamataEngine::WorldTransform worldTransform_;
 	KamataEngine::Model* model_ = nullptr;

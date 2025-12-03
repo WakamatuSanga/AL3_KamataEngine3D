@@ -33,22 +33,24 @@ void Player::SpawnBullet() {
 
 	const float kBulletSpeed = 1.0f;
 
-	// 回転行列
-	Matrix4x4 rx = MakeRotateXMatrix(worldTransform_.rotation_.x);
-	Matrix4x4 ry = MakeRotateYMatrix(worldTransform_.rotation_.y);
-	Matrix4x4 rz = MakeRotateZMatrix(worldTransform_.rotation_.z);
-	Matrix4x4 r = rz * rx * ry;
-
-	// ★ 並進無視で前方向を回す
-	Vector3 forwardWorld = TransformNormal({0, 0, 1}, r);
+	// ★ ワールド行列の 3x3 部分で前方向(+Z)を求める
+	Vector3 forwardWorld = TransformNormal({0, 0, 1}, worldTransform_.matWorld_);
 	forwardWorld = Normalized(forwardWorld);
+
+	// ★ プレイヤーのワールド座標
+	Vector3 spawnPos{
+	    worldTransform_.matWorld_.m[3][0],
+	    worldTransform_.matWorld_.m[3][1],
+	    worldTransform_.matWorld_.m[3][2],
+	};
 
 	Vector3 velocity = forwardWorld * kBulletSpeed;
 
 	auto* b = new PlayerBullet();
-	b->Initialize(bulletModel_, worldTransform_.translation_, velocity);
+	b->Initialize(bulletModel_, spawnPos, velocity);
 	bullets_.push_back(b);
 }
+
 
 float Player::GetCollisionRadius() const {
 	const auto& s = worldTransform_.scale_;
@@ -56,6 +58,8 @@ float Player::GetCollisionRadius() const {
 	constexpr float kBase = 0.9f; // モデル素の半径（見た目に合わせて調整）
 	return kBase * m;
 }
+
+void Player::SetParent(const KamataEngine::WorldTransform* parent) { worldTransform_.parent_ = parent; }
 
 void Player::Update() {
 	// 移動（WASD）
@@ -70,7 +74,8 @@ void Player::Update() {
 	if (input_->PushKey(DIK_S))
 		move.y -= kSpeed;
 	worldTransform_.translation_ += move;
-
+	// 親（レールカメラ）込みのワールド行列を先に更新
+	WorldTransformUpdate(worldTransform_);
 	// 射撃（左クリック：単発＋長押し連射）
 	bool pressed = input_->IsTriggerMouse(0);                 // 押した瞬間
 	bool held = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0; // 押下中
@@ -111,9 +116,7 @@ void Player::Update() {
 		}
 	}
 
-	// ワールド行列更新
-	worldTransform_.matWorld_ = MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
-	worldTransform_.TransferMatrix();
+	
 }
 
 void Player::Draw(Camera& camera) {

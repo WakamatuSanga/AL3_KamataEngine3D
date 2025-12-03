@@ -4,7 +4,7 @@
 using namespace KamataEngine;
 
 void Ground::Initialize(Model* model, float width, float segLen, int countZ, float y, float speed, int columns, float colSpacingX) {
-	model_ = model ? model : Model::Create();
+	model_ = model;
 	width_ = width;
 	segLen_ = segLen;
 	countZ_ = max(1, countZ);
@@ -35,7 +35,7 @@ void Ground::Initialize(Model* model, float width, float segLen, int countZ, flo
 }
 
 void Ground::InitializeOBJ(Model* model, float stepZ, int countZ, float y, float speed, float uniformScale, int columns, float colSpacingX) {
-	model_ = model ? model : Model::Create();
+	model_ = model;
 	segLen_ = stepZ;
 	countZ_ = max(1, countZ);
 	y_ = y;

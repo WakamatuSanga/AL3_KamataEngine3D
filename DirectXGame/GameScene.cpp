@@ -3,16 +3,35 @@
 using namespace KamataEngine;
 
 void GameScene::Initialize() {
-	// カメラ
+	//カメラ
 	camera_.Initialize();
+	camera_.UpdateMatrix();
+	// シングルトンインスタンスを生成する
+	PrimitiveDrawer::kIndexCountLine();
+	// レールカメラ
+	railCamera_.Initialize(/*pos*/ {0, 2.0f, -10.0f}, /*rot*/ {0, 0, 0}, /*fovY*/ 0.45f, /*near*/ 0.1f, /*far*/ 800.0f);
+	
+	 // --- スプライン制御点（通過点） ---
+	// 画面奥の Z=40 付近に S 字カーブを置くイメージ
+	splineControlPoints_ = {
+	    {0.0f,  0.0f,  40.0f},
+        {10.0f, 10.0f, 40.0f},
+        {10.0f, 15.0f, 40.0f},
+        {20.0f, 15.0f, 40.0f},
+        {20.0f, 0.0f,  40.0f},
+        {30.0f, 0.0f,  40.0f},
+	};
 
+	// 最初のサンプルを作っておく（無くても Update で毎フレ作るので OK）
+	splinePoints_.clear();
+	
 	// 地面
 	groundModel_ = KamataEngine::Model::CreateFromOBJ("ground");
 	ground_.InitializeOBJ(
 	    groundModel_,
 	    /*stepZ*/ 20.0f,
 	    /*countZ*/ 16,
-	    /*y*/ -9.0f,
+	    /*y*/ -15.0f,
 	    /*speed*/ 0.6f,
 	    /*uniformScale*/ 1.0f,
 	    /*columns*/ 3,
@@ -29,6 +48,11 @@ void GameScene::Initialize() {
 	// プレイヤーモデル（OBJ名はプロジェクトに合わせて）
 	playerModel_ = Model::CreateFromOBJ("player"); // 無ければ "cube" など
 	player_.Initialize(playerModel_);
+
+	// プレイヤをレールカメラの子にして、カメラより前にオフセット
+	player_.SetParent(&railCamera_.GetWorldTransform());
+	// カメラの前方にローカル配置（+Zが前想定）
+	player_.SetLocalPosition({0.0f, 0.0f, +15.0f});
 
 	// 敵モデル（とりあえず cube を流用でもOK）
 	enemyModel_ = Model::CreateFromOBJ("enemy"); // 無ければ "cube"
@@ -53,7 +77,21 @@ void GameScene::Initialize() {
 }
 
 void GameScene::Update() {
-	camera_.UpdateMatrix();
+	
+	//レールカメラ
+	railCamera_.Update();
+
+	 // スプライン曲線用のサンプリング -----------------
+	if (splineControlPoints_.size() >= 4) {
+		splinePoints_.clear();
+		const size_t segmentCount = 100; // 線分の数
+		splinePoints_.reserve(segmentCount + 1);
+		for (size_t i = 0; i <= segmentCount; ++i) {
+			float t = static_cast<float>(i) / static_cast<float>(segmentCount);
+			Vector3 pos = CatmullRomSpline(splineControlPoints_, t);
+			splinePoints_.push_back(pos);
+		}
+	}
 	// 天球
 	skydome_.Update();
 	// プレイヤー
@@ -176,25 +214,45 @@ void GameScene::Draw() {
 
 	// 3D
 	Model::PreDraw(dxCommon->GetCommandList());
+	// レールカメラの Camera を使う
+	Camera& cam = railCamera_.GetCamera();
+	
 
 	// プレイヤー
-	player_.Draw(camera_);
+	player_.Draw(cam);
 
 	// エネミー群
 	if (enemy_) {
-		enemy_->Draw(camera_);
+		enemy_->Draw(cam);
 	}
 	if (enemyAimer_) {
-		enemyAimer_->Draw(camera_);
+		enemyAimer_->Draw(cam);
 	}
 	if (enemyHoming_) {
-		enemyHoming_->Draw(camera_);
+		enemyHoming_->Draw(cam);
 	}
 	// 天球
-	skydome_.Draw(camera_);
+	skydome_.Draw(cam);
 	// 地面
-	ground_.Draw(camera_);
+	ground_.Draw(cam);
 	Model::PostDraw();
+
+	if (splinePoints_.size() >= 2) {
+		auto* drawer = PrimitiveDrawer::GetInstance();
+
+		// クラッシュ防止チェック（念のため残しておく）
+		if (drawer != nullptr) {
+
+			drawer->SetViewProjection(&cam.matProjection());
+
+			Vector4 color{1.0f, 0.0f, 0.0f, 1.0f}; // 赤
+			for (size_t i = 1; i < splinePoints_.size(); ++i) {
+				const Vector3& a = splinePoints_[i - 1];
+				const Vector3& b = splinePoints_[i];
+				drawer->DrawLine3d(a, b, color);
+			}
+		}
+	}
 }
 
 GameScene::~GameScene() {
@@ -213,6 +271,9 @@ GameScene::~GameScene() {
 
 	delete enemyAimer_;
 	enemyAimer_ = nullptr;
+
+	delete enemyHoming_;
+	enemyHoming_ = nullptr;
 
 	delete enemyAimerModel_;
 	enemyAimerModel_ = nullptr;

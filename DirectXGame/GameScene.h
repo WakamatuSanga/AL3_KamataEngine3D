@@ -6,6 +6,8 @@
 #include "EnemyHoming.h"
 #include "Skydome.h"
 #include "Ground.h"
+#include "RailCameraController.h"
+#include <vector> 
 class GameScene {
 public:
 	void Initialize();
@@ -40,6 +42,13 @@ private:
 	Ground ground_;
 	KamataEngine::Model* groundModel_ = nullptr;
 
+	// レールカメラ
+	RailCameraController railCamera_;
+
 	// 総当たり判定
 	void CheckAllCollisions();
+
+	// ▼ スプライン制御点・描画用頂点
+	std::vector<KamataEngine::Vector3> splineControlPoints_;
+	std::vector<KamataEngine::Vector3> splinePoints_; // Catmull-Rom でサンプルした点たち
 };
