@@ -6,8 +6,7 @@ void GameScene::Initialize() {
 	//カメラ
 	camera_.Initialize();
 	camera_.UpdateMatrix();
-	// シングルトンインスタンスを生成する
-	PrimitiveDrawer::kIndexCountLine();
+
 	// レールカメラ
 	railCamera_.Initialize(/*pos*/ {0, 2.0f, -10.0f}, /*rot*/ {0, 0, 0}, /*fovY*/ 0.45f, /*near*/ 0.1f, /*far*/ 800.0f);
 	
@@ -80,18 +79,6 @@ void GameScene::Update() {
 	
 	//レールカメラ
 	railCamera_.Update();
-
-	 // スプライン曲線用のサンプリング -----------------
-	if (splineControlPoints_.size() >= 4) {
-		splinePoints_.clear();
-		const size_t segmentCount = 100; // 線分の数
-		splinePoints_.reserve(segmentCount + 1);
-		for (size_t i = 0; i <= segmentCount; ++i) {
-			float t = static_cast<float>(i) / static_cast<float>(segmentCount);
-			Vector3 pos = CatmullRomSpline(splineControlPoints_, t);
-			splinePoints_.push_back(pos);
-		}
-	}
 	// 天球
 	skydome_.Update();
 	// プレイヤー
@@ -236,23 +223,6 @@ void GameScene::Draw() {
 	// 地面
 	ground_.Draw(cam);
 	Model::PostDraw();
-
-	if (splinePoints_.size() >= 2) {
-		auto* drawer = PrimitiveDrawer::GetInstance();
-
-		// クラッシュ防止チェック（念のため残しておく）
-		if (drawer != nullptr) {
-
-			drawer->SetViewProjection(&cam.matProjection());
-
-			Vector4 color{1.0f, 0.0f, 0.0f, 1.0f}; // 赤
-			for (size_t i = 1; i < splinePoints_.size(); ++i) {
-				const Vector3& a = splinePoints_[i - 1];
-				const Vector3& b = splinePoints_[i];
-				drawer->DrawLine3d(a, b, color);
-			}
-		}
-	}
 }
 
 GameScene::~GameScene() {
