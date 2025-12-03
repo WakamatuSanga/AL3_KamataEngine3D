@@ -6,12 +6,14 @@ void GameScene::Initialize() {
 	//カメラ
 	camera_.Initialize();
 	camera_.UpdateMatrix();
+	
+	// 描画クラスの生成
+	PrimitiveDrawer::GetInstance()->Initialize();
 
 	// レールカメラ
 	railCamera_.Initialize(/*pos*/ {0, 2.0f, -10.0f}, /*rot*/ {0, 0, 0}, /*fovY*/ 0.45f, /*near*/ 0.1f, /*far*/ 800.0f);
 	
-	 // --- スプライン制御点（通過点） ---
-	// 画面奥の Z=40 付近に S 字カーブを置くイメージ
+	// スプライン制御点（通過点）
 	splineControlPoints_ = {
 	    {0.0f,  0.0f,  40.0f},
         {10.0f, 10.0f, 40.0f},
@@ -23,6 +25,19 @@ void GameScene::Initialize() {
 
 	// 最初のサンプルを作っておく（無くても Update で毎フレ作るので OK）
 	splinePoints_.clear();
+	// 線分で描画するための頂点リスト計算
+	splinePoints_.clear();
+
+	// 分割数 (100個の線分)
+	const size_t segmentCount = 100;
+
+	// MyMathにある関数を使って、0.0～1.0の間を細かくサンプリングする
+	for (size_t i = 0; i <= segmentCount; i++) {
+		float t = (float)i / segmentCount;
+		Vector3 pos = CatmullRomSpline(splineControlPoints_, t);
+
+		splinePoints_.push_back(pos);
+	}
 	
 	// 地面
 	groundModel_ = KamataEngine::Model::CreateFromOBJ("ground");
@@ -223,6 +238,16 @@ void GameScene::Draw() {
 	// 地面
 	ground_.Draw(cam);
 	Model::PostDraw();
+
+	if (splinePoints_.size() >= 2) {
+		auto* drawer = PrimitiveDrawer::GetInstance();
+		drawer->SetCamera(&railCamera_.GetCamera());
+
+		Vector4 color{1.0f, 0.0f, 0.0f, 1.0f};
+		for (size_t i = 1; i < splinePoints_.size(); ++i) {
+			drawer->DrawLine3d(splinePoints_[i - 1], splinePoints_[i], color);
+		}
+	}
 }
 
 GameScene::~GameScene() {
