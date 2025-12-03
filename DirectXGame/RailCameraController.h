@@ -16,7 +16,7 @@ public:
 	const KamataEngine::Camera& GetCamera() const { return camera_; }
 	// 親子付けのため：カメラ“オブジェクト”のワールド変換
 	const KamataEngine::WorldTransform& GetWorldTransform() const { return worldTransform_; }
-
+	WorldTransform& GetWorldTransform() { return worldTransform_; }
 	// パラメータ変更
 	void SetPerspective(float fovY, float nearZ, float farZ) {
 		camera_.fovAngleY = fovY;
