@@ -7,7 +7,7 @@ public:
 	void Initialize(KamataEngine::Model* model);
 
 	// 更新
-	void Update();
+	void Update(const KamataEngine::Matrix4x4& viewMat);
 
 	// 描画
 	void Draw(KamataEngine::Camera& camera);
@@ -18,4 +18,6 @@ private:
 
 	// ワールド変換データ（位置・大きさ・回転）
 	KamataEngine::WorldTransform worldTransform_;
+
+	KamataEngine::Matrix4x4 matRotationAccumulated_;
 };

@@ -1,7 +1,7 @@
 #pragma once
 #include "KamataEngine.h"
-#include "PlayerBullet.h"
 #include "MyMath.h"
+#include "PlayerBullet.h"
 #include <vector>
 
 class Player {
@@ -36,7 +36,8 @@ public:
 	float GetCollisionRadius() const;
 	void SetParent(const KamataEngine::WorldTransform* parent);
 	void SetLocalPosition(const KamataEngine::Vector3& local) { worldTransform_.translation_ = local; }
-	const KamataEngine::WorldTransform& GetWorldTransform() const { return worldTransform_; }
+	KamataEngine::WorldTransform& GetWorldTransform() { return worldTransform_; }
+
 private:
 	KamataEngine::WorldTransform worldTransform_;
 	KamataEngine::Model* model_ = nullptr;

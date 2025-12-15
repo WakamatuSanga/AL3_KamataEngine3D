@@ -347,3 +347,36 @@ Vector3 CatmullRomSpline(const std::vector<Vector3>& cps, float t) {
 
 	return CatmullRom(cps[i0], cps[i1], cps[i2], cps[i3], localT);
 }
+
+// 任意の軸(axis)を指定した角度(angle)で回転させる行列
+Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
+	float c = std::cos(angle);
+	float s = std::sin(angle);
+	float t = 1.0f - c;
+	float x = axis.x;
+	float y = axis.y;
+	float z = axis.z;
+
+	Matrix4x4 result;
+	result.m[0][0] = t * x * x + c;
+	result.m[0][1] = t * x * y + s * z;
+	result.m[0][2] = t * x * z - s * y;
+	result.m[0][3] = 0.0f;
+
+	result.m[1][0] = t * x * y - s * z;
+	result.m[1][1] = t * y * y + c;
+	result.m[1][2] = t * y * z + s * x;
+	result.m[1][3] = 0.0f;
+
+	result.m[2][0] = t * x * z + s * y;
+	result.m[2][1] = t * y * z - s * x;
+	result.m[2][2] = t * z * z + c;
+	result.m[2][3] = 0.0f;
+
+	result.m[3][0] = 0.0f;
+	result.m[3][1] = 0.0f;
+	result.m[3][2] = 0.0f;
+	result.m[3][3] = 1.0f;
+
+	return result;
+}

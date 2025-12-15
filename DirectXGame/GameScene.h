@@ -55,6 +55,8 @@ private:
 	// 総当たり判定
 	void CheckAllCollisions();
 
+	KamataEngine::WorldTransform playerWorldTransform_;
+	KamataEngine::Vector3 playerLocalPos_ = {0, 0, 0};
 	// ▼ スプライン制御点・描画用頂点
 	std::vector<KamataEngine::Vector3> splineControlPoints_;
 	std::vector<KamataEngine::Vector3> splinePoints_; // Catmull-Rom でサンプルした点たち
@@ -65,4 +67,9 @@ private:
 	// レールカメラ移動用
 	float splineT_ = 0.0f;            // レール上の進行度 (0.0 ～ 1.0)
 	float moveSpeed_ = 1.0f / 1800.0f; // 移動スピード (例: 600フレームで1周)
+
+	// ▼▼▼ デバッグカメラ用 ▼▼▼
+	bool isDebugCamera_ = false;                       // デバッグモードON/OFFフラグ
+	KamataEngine::Vector3 debugCameraRot_ = {0, 0, 0}; // デバッグ時のカメラ角度
+	KamataEngine::Vector2 preMousePos_ = {0, 0};       // マウスの座標保存用
 };

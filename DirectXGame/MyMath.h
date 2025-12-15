@@ -93,3 +93,6 @@ Vector3 CatmullRom(const Vector3& p0, const Vector3& p1, const Vector3& p2, cons
 
 // 制御点配列全体に対して 0～1 の t から位置を求める
 Vector3 CatmullRomSpline(const std::vector<Vector3>& controlPoints, float t);
+
+// 任意の軸まわりの回転行列を作成する関数
+Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle);
