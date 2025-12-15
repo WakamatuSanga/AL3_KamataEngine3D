@@ -12,41 +12,50 @@ void GameScene::Initialize() {
 	PrimitiveDrawer::GetInstance()->Initialize();
 
 	// レールカメラ
-	railCamera_.Initialize(/*pos*/ {0, 2.0f, -10.0f}, /*rot*/ {0, 0, 0}, /*fovY*/ 0.45f, /*near*/ 0.1f, /*far*/ 800.0f);
+	railCamera_.Initialize(/*pos*/ {0, 2.0f, -10.0f}, /*rot*/ {0, 0, 0}, /*fovY*/ 0.45f, /*near*/ 0.1f, /*far*/ 5000.0f);
 	
 	// 変数の初期化
 	phase_ = Phase::kWait;
 	splineT_ = 0.0f;
 
 // --- スプライン制御点（通過点） ---
-	// スタートとゴールを「直線の点」で挟むことで、最初と最後を水平にします
+	// 距離3000の超ロングコース
 	splineControlPoints_ = {
-	    // 【Start Buffer】計算用の点（画面には映らないが、スタートを直線にするために必要）
-	    {0.0f,   0.0f,  -20.0f},
+	    // 【Start Buffer】
+	    {0.0f,    0.0f,   -50.0f },
 
-	    // 1. 実質的なスタート地点 (t=0.0)
-	    {0.0f,   0.0f,  0.0f  },
+	    // 1. スタート
+	    {0.0f,    0.0f,   0.0f   },
 
-	    // 2. 助走区間 (t=0.2くらい)
-	    // ここまで一直線に配置することで、スタート時にカメラが正面を向きます
-	    {0.0f,   0.0f,  40.0f },
+	    // 2. 助走 (Z=200まで加速)
+	    {0.0f,    0.0f,   200.0f },
 
-	    // 3. 上昇＆右カーブ
-	    {30.0f,  30.0f, 100.0f},
+	    // 3. 第1上昇 (Z=600, Y=150)
+	    {0.0f,    150.0f, 600.0f },
 
-	    // 4. 左カーブ＆維持
-	    {-30.0f, 30.0f, 160.0f},
+	    // 4. 右旋回しながら急降下 (Z=1000, Y=30, X=100)
+	    {100.0f,  30.0f,  1000.0f},
 
-	    // 5. 着地地点 (t=0.8くらい)
-	    // 地面(Y=0)に戻しておく
-	    {0.0f,   0.0f,  220.0f},
+	    // 5. 左へ切り返して急上昇 (Z=1500, Y=300 !!) 一気に空へ
+	    {-100.0f, 300.0f, 1500.0f},
 
-	    // 6. 実質的なゴール地点 (t=1.0)
-	    // 着地地点と同じY座標で奥に置くことで、最後も水平になります
-	    {0.0f,   0.0f,  260.0f},
+	    // 6. 頂上でキープ (Z=1800, Y=300)
+	    {0.0f,    300.0f, 1800.0f},
 
-	    // 【End Buffer】計算用の点（ゴール後の姿勢を安定させる）
-	    {0.0f,   0.0f,  300.0f},
+	    // 7. 奈落へダイブ (Z=2200, Y=50)
+	    {0.0f,    50.0f,  2200.0f},
+
+	    // 8. 最後のひと山 (Z=2600, Y=150)
+	    {50.0f,   150.0f, 2600.0f},
+
+	    // 9. 着地してゴール (Z=3000)
+	    {0.0f,    0.0f,   3000.0f},
+
+	    // 10. ゴールライン
+	    {0.0f,    0.0f,   3100.0f},
+
+	    // 【End Buffer】
+	    {0.0f,    0.0f,   3200.0f},
 	};
 	// 最初のサンプルを作っておく（無くても Update で毎フレ作るので OK）
 	splinePoints_.clear();
@@ -54,7 +63,7 @@ void GameScene::Initialize() {
 	splinePoints_.clear();
 
 	// 分割数 (100個の線分)
-	const size_t segmentCount = 100;
+	const size_t segmentCount = 400;
 
 	// MyMathにある関数を使って、0.0～1.0の間を細かくサンプリングする
 	for (size_t i = 0; i <= segmentCount; i++) {
@@ -65,25 +74,8 @@ void GameScene::Initialize() {
 	}
 	
 	// 地面
-	groundModel_ = KamataEngine::Model::CreateFromOBJ("ground");
-	ground_.InitializeOBJ(
-	    groundModel_,
-	    /*stepZ*/ 20.0f,
-	    /*countZ*/ 16,
-	    /*y*/ -15.0f,
-	    /*speed*/ 0.6f,
-	    /*uniformScale*/ 1.0f,
-	    /*columns*/ 3,
-	    /*colSpacingX*/ 10.0f // 列間隔（見た目に合わせて調整）
-	);
-
-	// 初期位置をカメラ手前から並べる（任意）
-	ground_.StartAtCameraFront(/*cameraZ*/ 0.0f, /*tilesInFront*/ 4, /*margin*/ 2.0f);
-
-	// カメラよりもっと後ろまで行ってから再配置（任意）
-	ground_.UseBehindCameraRecycle(80.0f);
-	ground_.SetCameraZ(0.0f); // Update前に毎フレーム
-
+	groundModel_ = Model::CreateFromOBJ("sea", true);
+	ground_.Initialize(groundModel_);
 	// プレイヤーモデル（OBJ名はプロジェクトに合わせて）
 	playerModel_ = Model::CreateFromOBJ("player"); // 無ければ "cube" など
 	player_.Initialize(playerModel_);
@@ -147,41 +139,29 @@ void GameScene::Update() {
 		}
 
 		// 3. 座標の計算
-		// 視点と注視点の取得
-		Vector3 eye = CatmullRomSpline(splineControlPoints_, splineT_);
-		float targetT = min(splineT_ + 0.01f, 1.0f);
-		Vector3 target = CatmullRomSpline(splineControlPoints_, targetT);
+		Vector3 lookTarget = CatmullRomSpline(splineControlPoints_, splineT_);
 
 		// カメラ情報の取得
 		WorldTransform& worldTransform = railCamera_.GetWorldTransform();
-		worldTransform.translation_ = eye;
 
-		// ベクトルの計算
-		Vector3 diff = {target.x - eye.x, target.y - eye.y, target.z - eye.z};
+		// ★重要：ここで worldTransform.translation_ = ... を書かない！
+		// これにより、カメラは初期位置（または待機位置）から動きません。
 
-		// 水平方向の距離を計算（三平方の定理：√(x^2 + z^2)）
-		// これがないと上下の角度が出せません
+		// ★変更点：回転の計算
+		// 「自分の現在地」から「レール上の点」へのベクトルを計算
+		Vector3 diff = {lookTarget.x - worldTransform.translation_.x, lookTarget.y - worldTransform.translation_.y, lookTarget.z - worldTransform.translation_.z};
+
+		// 水平方向の距離（上下角度の計算用）
 		float horizontalDist = std::sqrt(diff.x * diff.x + diff.z * diff.z);
 
 		if (horizontalDist != 0.0f) {
-			// (1) Y軸回転（左右の向き）：これは前回と同じ
+			// (1) Y軸回転（左右）：ターゲットの方角を向く
 			worldTransform.rotation_.y = std::atan2(diff.x, diff.z);
+
+			// (2) X軸回転（上下）：見上げる/見下ろす
+			// マイナスをつけることで、高い場所を見るときにカメラが上を向くようになります
 			worldTransform.rotation_.x = std::atan2(-diff.y, horizontalDist);
 		}
-
-		// 4. カメラの向き（回転）の計算
-		// 進行方向ベクトル (target - eye)
-		Vector3 forward = {
-		    target.x - eye.x,
-		    target.y - eye.y, // 上下移動も含めるなら使う
-		    target.z - eye.z};
-
-		// Y軸の回転角度を計算 (atan2を使用)
-		// これでカメラが進行方向を向くようになります
-		worldTransform.rotation_.y = std::atan2(forward.x, forward.z);
-
-		// ※必要ならX軸回転（上下の傾き）も計算できますが、まずはY回転だけでOKです
-
 		// レールカメラの更新処理（行列計算）を呼ぶ
 		railCamera_.Update();
 	} break;
@@ -195,10 +175,8 @@ void GameScene::Update() {
 	skydome_.Update();
 	// プレイヤー
 	player_.Update();
-	ground_.SetPlayerX(player_.GetPosition().x);
 	// 地面更新
 	ground_.Update();
-	ground_.SetCameraZ(/*cameraのワールドZ*/ 0.0f);
 	// エネミー群
 	if (enemy_) {
 		enemy_->Update();

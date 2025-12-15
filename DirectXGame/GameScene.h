@@ -64,5 +64,5 @@ private:
 	float timer_ = 0.0f;
 	// レールカメラ移動用
 	float splineT_ = 0.0f;            // レール上の進行度 (0.0 ～ 1.0)
-	float moveSpeed_ = 1.0f / 600.0f; // 移動スピード (例: 600フレームで1周)
+	float moveSpeed_ = 1.0f / 1800.0f; // 移動スピード (例: 600フレームで1周)
 };
