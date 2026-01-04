@@ -2,18 +2,22 @@
 #include "Enemy.h"
 #include "EnemyAimer.h"
 #include "EnemyHoming.h"
+#include "EnemyManager.h"
 #include "Ground.h"
+#include "IScene.h"
 #include "KamataEngine.h"
 #include "Player.h"
 #include "RailCameraController.h"
 #include "Skydome.h"
 #include <vector>
-class GameScene {
+
+// IScene を継承させる
+class GameScene : public IScene {
 public:
-	void Initialize();
-	void Update();
-	void Draw();
-	~GameScene();
+	void Initialize() override;
+	void Update() override;
+	void Draw() override;
+	~GameScene() override;
 	// フェーズの定義
 	enum class Phase {
 		kWait,  // 0: 待機（開始前）
@@ -29,17 +33,11 @@ private:
 	Player player_;
 	KamataEngine::Model* playerModel_ = nullptr;
 
-	// 敵
-	Enemy* enemy_ = nullptr;
-	KamataEngine::Model* enemyModel_ = nullptr;
+	// 敵管理（EnemyManagerへ移行する場合はここを差し替えますが、今回は既存維持＋Managerも使用可能にしておきます）
+	EnemyManager* enemyManager_ = nullptr;
 
-	// 自機狙い敵
-	EnemyAimer* enemyAimer_ = nullptr;
-	KamataEngine::Model* enemyAimerModel_ = nullptr;
-
-	// ホーミング
-	EnemyHoming* enemyHoming_ = nullptr;
-	KamataEngine::Model* enemyHomingModel_ = nullptr;
+	// 既存の敵コード（EnemyManagerを使うなら不要になりますが、移行期間として残します）
+	// 今回はEnemyManagerを使用するように初期化で調整します
 
 	// 天球
 	Skydome skydome_;
@@ -65,7 +63,7 @@ private:
 	Phase phase_ = Phase::kWait;
 	float timer_ = 0.0f;
 	// レールカメラ移動用
-	float splineT_ = 0.0f;            // レール上の進行度 (0.0 ～ 1.0)
+	float splineT_ = 0.0f;             // レール上の進行度 (0.0 ～ 1.0)
 	float moveSpeed_ = 1.0f / 1800.0f; // 移動スピード (例: 600フレームで1周)
 
 	// ▼▼▼ デバッグカメラ用 ▼▼▼

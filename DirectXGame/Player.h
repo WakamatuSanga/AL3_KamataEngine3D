@@ -27,8 +27,13 @@ public:
 		Vector3 fwd = TransformNormal({0, 0, 1}, worldTransform_.matWorld_);
 		return Normalized(fwd);
 	}
-	// 当たり時コールバック（今回何もしない）
-	void OnCollision() {}
+	// 当たり時コールバック
+	void OnCollision();
+
+	// 死亡判定
+	bool IsDead() const { return isDead_; }
+	// HP取得（UI表示用など）
+	int GetHP() const { return hp_; }
 
 	// 自弾リストの貸出し
 	const std::vector<PlayerBullet*>& GetBullets() const { return bullets_; }
@@ -52,7 +57,14 @@ private:
 	int holdFrames_ = 0;
 	int autoFireDelayFrames_ = 20;   // 長押し開始から何フレーム後に連射開始するか
 	int autoFireIntervalFrames_ = 5; // 連射間隔
-	int autoFireCounter_ = 0;        // ★ 追加：連射カウンタ（static廃止）
+	int autoFireCounter_ = 0;        // 連射カウンタ（static廃止）
+
+	// HP関連
+	int hp_ = 10;
+	bool isDead_ = false;
+	// 被弾時の無敵時間など
+	int invincibilityTimer_ = 0;
+	static const int kInvincibilityTime = 60; // 60フレーム無敵
 
 	void SpawnBullet();
 };

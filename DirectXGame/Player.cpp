@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
+#include <imgui.h> // デバッグ表示用
 
 using namespace KamataEngine;
 
@@ -24,6 +25,11 @@ void Player::Initialize(Model* model) {
 	input_ = Input::GetInstance();
 
 	bulletModel_ = Model::Create();
+
+	// HP初期化
+	hp_ = 10;
+	isDead_ = false;
+	invincibilityTimer_ = 0;
 }
 
 // 弾生成
@@ -33,11 +39,11 @@ void Player::SpawnBullet() {
 
 	const float kBulletSpeed = 1.0f;
 
-	// ★ ワールド行列の 3x3 部分で前方向(+Z)を求める
+	// ワールド行列の 3x3 部分で前方向(+Z)を求める
 	Vector3 forwardWorld = TransformNormal({0, 0, 1}, worldTransform_.matWorld_);
 	forwardWorld = Normalized(forwardWorld);
 
-	// ★ プレイヤーのワールド座標
+	// プレイヤーのワールド座標
 	Vector3 spawnPos{
 	    worldTransform_.matWorld_.m[3][0],
 	    worldTransform_.matWorld_.m[3][1],
@@ -51,7 +57,6 @@ void Player::SpawnBullet() {
 	bullets_.push_back(b);
 }
 
-
 float Player::GetCollisionRadius() const {
 	const auto& s = worldTransform_.scale_;
 	float m = max(max(std::fabs(s.x), std::fabs(s.y)), std::fabs(s.z));
@@ -61,7 +66,29 @@ float Player::GetCollisionRadius() const {
 
 void Player::SetParent(const KamataEngine::WorldTransform* parent) { worldTransform_.parent_ = parent; }
 
+void Player::OnCollision() {
+	// 無敵時間中でなければダメージ
+	if (invincibilityTimer_ <= 0) {
+		hp_--;
+		if (hp_ <= 0) {
+			hp_ = 0;
+			isDead_ = true;
+		} else {
+			invincibilityTimer_ = kInvincibilityTime;
+		}
+	}
+}
+
 void Player::Update() {
+	// 無敵時間の更新
+	if (invincibilityTimer_ > 0) {
+		invincibilityTimer_--;
+	}
+
+	// 死亡していたら更新しない（あるいは爆発演出などへ）
+	if (isDead_)
+		return;
+
 	// 移動（WASD）
 	Vector3 move{0.0f, 0.0f, 0.0f};
 	const float kSpeed = 0.2f;
@@ -85,7 +112,7 @@ void Player::Update() {
 	if (pressed) {
 		SpawnBullet();
 		holdFrames_ = 0;
-		autoFireCounter_ = 0; // ★ リセット
+		autoFireCounter_ = 0; // リセット
 	}
 
 	if (held) {
@@ -94,14 +121,14 @@ void Player::Update() {
 			++autoFireCounter_;
 			if (autoFireCounter_ >= autoFireIntervalFrames_) {
 				SpawnBullet();
-				autoFireCounter_ = 0; // ★ 間隔で発射
+				autoFireCounter_ = 0; // 間隔で発射
 			}
 		}
 	}
 
 	if (released) {
 		holdFrames_ = 0;
-		autoFireCounter_ = 0; // ★ リセット
+		autoFireCounter_ = 0; // リセット
 	}
 
 	// 弾更新＆削除
@@ -116,13 +143,33 @@ void Player::Update() {
 		}
 	}
 
-	
+	// 点滅処理（無敵時間中）
+	if (model_) {
+		if (invincibilityTimer_ > 0) {
+			// 点滅：偶数フレームなどで描画・非描画を切り替えるか、色を変える
+			// ここでは簡易的に色を赤くする等
+			// model_->SetColor({1, 0, 0, 1}); // エンジンに機能があれば
+		}
+	}
+
+	// デバッグ表示
+	ImGui::Begin("Player Info");
+	ImGui::Text("HP: %d", hp_);
+	if (invincibilityTimer_ > 0)
+		ImGui::Text("Invincible!");
+	ImGui::End();
 }
 
 void Player::Draw(Camera& camera) {
-	if (model_) {
-		model_->Draw(worldTransform_, camera);
+	// 無敵時間中は点滅させてみる（簡易実装：数フレームおきに描画スキップ）
+	if (invincibilityTimer_ > 0 && (invincibilityTimer_ / 5) % 2 == 0) {
+		// スキップ
+	} else {
+		if (model_) {
+			model_->Draw(worldTransform_, camera);
+		}
 	}
+
 	for (PlayerBullet* b : bullets_) {
 		b->Draw(camera);
 	}

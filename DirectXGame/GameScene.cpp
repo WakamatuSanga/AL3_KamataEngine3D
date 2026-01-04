@@ -1,4 +1,8 @@
 #include "GameScene.h"
+#include "ClearScene.h"
+#include "GameOverScene.h"
+#include "SceneManager.h"
+#include "TitleScene.h"
 #include <cmath>
 
 using namespace KamataEngine;
@@ -12,6 +16,7 @@ void GameScene::Initialize() {
 	PrimitiveDrawer::GetInstance()->Initialize();
 
 	// レールカメラ
+	// ここで初期化されるので、GameSceneがnewされるたびに位置は初期値に戻ります
 	railCamera_.Initialize(/*pos*/ {0, 2.0f, -10.0f}, /*rot*/ {0, 0, 0}, /*fovY*/ 0.45f, /*near*/ 0.1f, /*far*/ 5000.0f);
 
 	playerWorldTransform_.Initialize();
@@ -25,37 +30,26 @@ void GameScene::Initialize() {
 	splineControlPoints_ = {
 	    // 【Start Buffer】
 	    {0.0f,    0.0f,   -50.0f },
-
 	    // 1. スタート
 	    {0.0f,    0.0f,   0.0f   },
-
 	    // 2. 助走 (Z=200まで直進加速)
 	    {0.0f,    0.0f,   200.0f },
-
 	    // 3. 第1上昇 & 大きく右へ (X: 0 → 200, Y: 0 → 150)
 	    {200.0f,  150.0f, 600.0f },
-
 	    // 4. 左へ切り返しながら急降下 (X: 200 → -300 !!) 大回転
 	    {-300.0f, 40.0f,  1000.0f},
-
 	    // 5. 右へ切り返して急上昇 (X: -300 → 300 !!) 一気に空へ
 	    {300.0f,  350.0f, 1500.0f},
-
 	    // 6. 頂上で左へ流す (X: 300 → -150)
 	    {-150.0f, 300.0f, 1800.0f},
-
 	    // 7. 右旋回しながら奈落へダイブ (X: -150 → 200, Y: 300 → 40)
 	    {200.0f,  40.0f,  2200.0f},
-
 	    // 8. 最後のひと山 & 左へ (X: 200 → -200)
 	    {-200.0f, 150.0f, 2600.0f},
-
 	    // 9. 中央に戻りつつ着地 (Z=3000)
 	    {0.0f,    0.0f,   3000.0f},
-
 	    // 10. ゴールライン (水平維持)
 	    {0.0f,    0.0f,   3100.0f},
-
 	    // 【End Buffer】
 	    {0.0f,    0.0f,   3200.0f},
 	};
@@ -83,24 +77,13 @@ void GameScene::Initialize() {
 	player_.Initialize(playerModel_);
 
 	//// プレイヤをレールカメラの子にして、カメラより前にオフセット
-	//player_.SetParent(&railCamera_.GetWorldTransform());
+	// player_.SetParent(&railCamera_.GetWorldTransform());
 	//// カメラの前方にローカル配置（+Zが前想定）
-	//player_.SetLocalPosition({0.0f, 0.0f, +15.0f});
+	// player_.SetLocalPosition({0.0f, 0.0f, +15.0f});
 
-	// 敵モデル（とりあえず cube を流用でもOK）
-	enemyModel_ = Model::CreateFromOBJ("enemy"); // 無ければ "cube"
-	enemy_ = new Enemy();
-	enemy_->Initialize(enemyModel_);
-	// 自機狙い敵（モデルは enemyModel_ を使い回しても、別OBJでもOK）
-	enemyAimerModel_ = Model::CreateFromOBJ("enemy"); // 無ければ "enemy" など
-	enemyAimer_ = new EnemyAimer();
-	enemyAimer_->Initialize(enemyAimerModel_, &player_);
-	// ホーミング敵（他と同じスタイル）
-	enemyHomingModel_ = Model::CreateFromOBJ("enemy");
-	if (!enemyHomingModel_)
-		enemyHomingModel_ = Model::Create();
-	enemyHoming_ = new EnemyHoming();
-	enemyHoming_->Initialize(enemyHomingModel_, &player_);
+	// ★ EnemyManager の初期化
+	enemyManager_ = new EnemyManager();
+	enemyManager_->Initialize(&player_);
 
 	// 天球モデルの生成と初期化
 	modelSkydome_ = Model::CreateFromOBJ("skydome", true); // skydome/skydome.obj を読む
@@ -112,6 +95,12 @@ void GameScene::Initialize() {
 void GameScene::Update() {
 	// 入力を取得
 	auto* input = Input::GetInstance();
+
+	// ★ ゲームオーバー判定
+	if (player_.IsDead()) {
+		SceneManager::GetInstance()->ChangeScene(new GameOverScene());
+		return;
+	}
 
 	// ==================================================
 	// 1. デバッグモード切替 (0キー)
@@ -313,6 +302,8 @@ void GameScene::Update() {
 			break;
 		}
 		case Phase::kEnd:
+			// ★ ゴール判定：クリアシーンへ
+			SceneManager::GetInstance()->ChangeScene(new ClearScene());
 			break;
 		}
 	}
@@ -330,13 +321,9 @@ void GameScene::Update() {
 	// 地面（海）の位置をカメラに合わせる
 	ground_.Update(railCamera_.GetWorldTransform().matWorld_);
 
-	// エネミー群更新
-	if (enemy_)
-		enemy_->Update();
-	if (enemyAimer_)
-		enemyAimer_->Update();
-	if (enemyHoming_)
-		enemyHoming_->Update();
+	// エネミー群更新 (EnemyManagerを使用)
+	if (enemyManager_)
+		enemyManager_->Update();
 
 	// 当たり判定
 	CheckAllCollisions();
@@ -366,8 +353,8 @@ void GameScene::CheckAllCollisions() {
 				continue;
 			float rr = rPlayer + b->GetCollisionRadius();
 			if (distSq(playerPos, b->GetPosition()) <= rr * rr) {
-				player_.OnCollision();
-				b->OnCollision(); // 弾は消す
+				player_.OnCollision(); // ★ HP減少
+				b->OnCollision();      // 弾は消す
 			}
 		}
 	};
@@ -404,32 +391,32 @@ void GameScene::CheckAllCollisions() {
 		}
 	};
 
-	// ── 1) プレイヤー vs 敵弾（通常/自機狙い/ホーミング） ──
-	if (enemy_)
-		collidePlayerVsBullets(enemy_->GetBullets());
-	if (enemyAimer_)
-		collidePlayerVsBullets(enemyAimer_->GetBullets());
-	if (enemyHoming_)
-		collidePlayerVsBullets(enemyHoming_->GetBullets()); // EnemyHomingBullet*
+	// ★ EnemyManager の敵リストを参照して判定
+	if (enemyManager_) {
+		// 1. プレイヤー vs 敵弾
+		for (auto* e : enemyManager_->GetEnemies())
+			collidePlayerVsBullets(e->GetBullets());
+		for (auto* e : enemyManager_->GetAimers())
+			collidePlayerVsBullets(e->GetBullets());
+		for (auto* e : enemyManager_->GetHomings())
+			collidePlayerVsBullets(e->GetBullets());
 
-	// ── 2) 自弾 vs 敵本体 ──
-	if (enemy_) {
-		collidePlayerBulletsVsEnemyBody(enemy_->GetPosition(), enemy_->GetCollisionRadius());
-	}
-	if (enemyAimer_) {
-		collidePlayerBulletsVsEnemyBody(enemyAimer_->GetPosition(), enemyAimer_->GetCollisionRadius());
-	}
-	if (enemyHoming_) {
-		collidePlayerBulletsVsEnemyBody(enemyHoming_->GetPosition(), enemyHoming_->GetCollisionRadius());
-	}
+		// 2. 自弾 vs 敵本体
+		for (auto* e : enemyManager_->GetEnemies())
+			collidePlayerBulletsVsEnemyBody(e->GetPosition(), e->GetCollisionRadius());
+		for (auto* e : enemyManager_->GetAimers())
+			collidePlayerBulletsVsEnemyBody(e->GetPosition(), e->GetCollisionRadius());
+		for (auto* e : enemyManager_->GetHomings())
+			collidePlayerBulletsVsEnemyBody(e->GetPosition(), e->GetCollisionRadius());
 
-	// ── 3) 自弾 vs 敵弾（相殺） ──
-	if (enemy_)
-		collidePlayerBulletsVsEnemyBullets(enemy_->GetBullets());
-	if (enemyAimer_)
-		collidePlayerBulletsVsEnemyBullets(enemyAimer_->GetBullets());
-	if (enemyHoming_)
-		collidePlayerBulletsVsEnemyBullets(enemyHoming_->GetBullets()); // EnemyHomingBullet*
+		// 3. 自弾 vs 敵弾（相殺）
+		for (auto* e : enemyManager_->GetEnemies())
+			collidePlayerBulletsVsEnemyBullets(e->GetBullets());
+		for (auto* e : enemyManager_->GetAimers())
+			collidePlayerBulletsVsEnemyBullets(e->GetBullets());
+		for (auto* e : enemyManager_->GetHomings())
+			collidePlayerBulletsVsEnemyBullets(e->GetBullets());
+	}
 }
 
 void GameScene::Draw() {
@@ -447,16 +434,11 @@ void GameScene::Draw() {
 	// プレイヤー
 	player_.Draw(cam);
 
-	// エネミー群
-	if (enemy_) {
-		enemy_->Draw(cam);
+	// エネミー群 (EnemyManager)
+	if (enemyManager_) {
+		enemyManager_->Draw(cam);
 	}
-	if (enemyAimer_) {
-		enemyAimer_->Draw(cam);
-	}
-	if (enemyHoming_) {
-		enemyHoming_->Draw(cam);
-	}
+
 	// 天球
 	skydome_.Draw(cam);
 	// 地面
@@ -482,23 +464,17 @@ GameScene::~GameScene() {
 	delete groundModel_;
 	groundModel_ = nullptr;
 
-	delete enemy_;
-	enemy_ = nullptr;
+	delete enemyManager_;
+	enemyManager_ = nullptr;
 
-	delete enemyModel_;
+	/*delete enemyModel_;
 	enemyModel_ = nullptr;
-
-	delete enemyAimer_;
-	enemyAimer_ = nullptr;
-
-	delete enemyHoming_;
-	enemyHoming_ = nullptr;
 
 	delete enemyAimerModel_;
 	enemyAimerModel_ = nullptr;
 
 	delete enemyHomingModel_;
-	enemyHomingModel_ = nullptr;
+	enemyHomingModel_ = nullptr*/;
 
 	delete playerModel_;
 	playerModel_ = nullptr;
