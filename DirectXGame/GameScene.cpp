@@ -3,187 +3,125 @@
 #include "GameOverScene.h"
 #include "SceneManager.h"
 #include "TitleScene.h"
+#include <algorithm>
 #include <cmath>
 
 using namespace KamataEngine;
 
+GameScene::~GameScene() {
+	delete modelSkydome_;
+	delete groundModel_;
+	delete playerModel_;
+	delete enemyManager_;
+}
+
 void GameScene::Initialize() {
-	// カメラ
 	camera_.Initialize();
 	camera_.UpdateMatrix();
-
-	// 描画クラスの生成
 	PrimitiveDrawer::GetInstance()->Initialize();
-
-	// レールカメラ
-	// ここで初期化されるので、GameSceneがnewされるたびに位置は初期値に戻ります
-	railCamera_.Initialize(/*pos*/ {0, 2.0f, -10.0f}, /*rot*/ {0, 0, 0}, /*fovY*/ 0.45f, /*near*/ 0.1f, /*far*/ 5000.0f);
-
+	railCamera_.Initialize({0, 2.0f, -10.0f}, {0, 0, 0}, 0.45f, 0.1f, 5000.0f);
 	playerWorldTransform_.Initialize();
 
-	// 変数の初期化
 	phase_ = Phase::kWait;
 	splineT_ = 0.0f;
+	timer_ = 0.0f;
+	playerLocalPos_ = {0, 0, 0};
+	isDebugCamera_ = false;
 
-	// --- スプライン制御点（通過点） ---
-	// 高低差に加え、左右の蛇行（X軸）を激しくしたコース
+	// コース定義
 	splineControlPoints_ = {
-	    // 【Start Buffer】
 	    {0.0f,    0.0f,   -50.0f },
-	    // 1. スタート
-	    {0.0f,    0.0f,   0.0f   },
-	    // 2. 助走 (Z=200まで直進加速)
-	    {0.0f,    0.0f,   200.0f },
-	    // 3. 第1上昇 & 大きく右へ (X: 0 → 200, Y: 0 → 150)
-	    {200.0f,  150.0f, 600.0f },
-	    // 4. 左へ切り返しながら急降下 (X: 200 → -300 !!) 大回転
-	    {-300.0f, 40.0f,  1000.0f},
-	    // 5. 右へ切り返して急上昇 (X: -300 → 300 !!) 一気に空へ
-	    {300.0f,  350.0f, 1500.0f},
-	    // 6. 頂上で左へ流す (X: 300 → -150)
+        {0.0f,    0.0f,   0.0f   },
+        {0.0f,    0.0f,   200.0f },
+        {200.0f,  150.0f, 600.0f },
+        {-300.0f, 40.0f,  1000.0f},
+        {300.0f,  350.0f, 1500.0f},
 	    {-150.0f, 300.0f, 1800.0f},
-	    // 7. 右旋回しながら奈落へダイブ (X: -150 → 200, Y: 300 → 40)
-	    {200.0f,  40.0f,  2200.0f},
-	    // 8. 最後のひと山 & 左へ (X: 200 → -200)
-	    {-200.0f, 150.0f, 2600.0f},
-	    // 9. 中央に戻りつつ着地 (Z=3000)
-	    {0.0f,    0.0f,   3000.0f},
-	    // 10. ゴールライン (水平維持)
-	    {0.0f,    0.0f,   3100.0f},
-	    // 【End Buffer】
-	    {0.0f,    0.0f,   3200.0f},
-	};
-	// 最初のサンプルを作っておく（無くても Update で毎フレ作るので OK）
-	splinePoints_.clear();
-	// 線分で描画するための頂点リスト計算
-	splinePoints_.clear();
+        {200.0f,  40.0f,  2200.0f},
+        {-200.0f, 150.0f, 2600.0f},
+        {0.0f,    0.0f,   3000.0f},
+        {0.0f,    0.0f,   3100.0f},
+        {0.0f,    0.0f,   3200.0f}
+    };
 
-	// 分割数 (100個の線分)
+	splinePoints_.clear();
 	const size_t segmentCount = 500;
-
-	// MyMathにある関数を使って、0.0～1.0の間を細かくサンプリングする
 	for (size_t i = 0; i <= segmentCount; i++) {
 		float t = (float)i / segmentCount;
 		Vector3 pos = CatmullRomSpline(splineControlPoints_, t);
-
 		splinePoints_.push_back(pos);
 	}
 
-	// 地面
 	groundModel_ = Model::CreateFromOBJ("sea", true);
 	ground_.Initialize(groundModel_);
-	// プレイヤーモデル（OBJ名はプロジェクトに合わせて）
-	playerModel_ = Model::CreateFromOBJ("player"); // 無ければ "cube" など
+
+	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
+	if (!modelSkydome_)
+		modelSkydome_ = Model::Create();
+	skydome_.Initialize(modelSkydome_);
+
+	playerModel_ = Model::CreateFromOBJ("player");
 	player_.Initialize(playerModel_);
 
-	//// プレイヤをレールカメラの子にして、カメラより前にオフセット
-	// player_.SetParent(&railCamera_.GetWorldTransform());
-	//// カメラの前方にローカル配置（+Zが前想定）
-	// player_.SetLocalPosition({0.0f, 0.0f, +15.0f});
-
-	// ★ EnemyManager の初期化
+	// ★ EnemyManager 初期化
 	enemyManager_ = new EnemyManager();
 	enemyManager_->Initialize(&player_);
-
-	// 天球モデルの生成と初期化
-	modelSkydome_ = Model::CreateFromOBJ("skydome", true); // skydome/skydome.obj を読む
-	if (!modelSkydome_)
-		modelSkydome_ = Model::Create(); // フォールバック
-	skydome_.Initialize(modelSkydome_);
 }
 
 void GameScene::Update() {
-	// 入力を取得
 	auto* input = Input::GetInstance();
 
-	// ★ ゲームオーバー判定
 	if (player_.IsDead()) {
 		SceneManager::GetInstance()->ChangeScene(new GameOverScene());
 		return;
 	}
 
-	// ==================================================
-	// 1. デバッグモード切替 (0キー)
-	// ==================================================
+	// --- デバッグカメラ処理 ---
 	if (input->TriggerKey(DIK_0)) {
-		isDebugCamera_ = !isDebugCamera_; // ON/OFF切り替え
-
-		// 切り替わった瞬間の初期化
+		isDebugCamera_ = !isDebugCamera_;
 		if (isDebugCamera_) {
-			// 現在のカメラ角度を引き継ぐ（切り替え時にガクッとならないように）
 			debugCameraRot_ = railCamera_.GetWorldTransform().rotation_;
-			// 切り替え直後のマウス位置を記憶（視点飛び防止）
 			preMousePos_ = input->GetMousePosition();
 		}
 	}
 
-	// カメラの情報を取得（書き換え用）
-	WorldTransform& worldTransform = railCamera_.GetWorldTransform();
+	WorldTransform& camWT = railCamera_.GetWorldTransform();
 
-	// ==================================================
-	// 2. モードごとの処理分岐
-	// ==================================================
 	if (isDebugCamera_) {
-		// ▼▼▼ デバッグカメラモード（自由に動ける） ▼▼▼
-
-		// --- (A) マウスで視点変更 (左クリック中のみ) ---
 		Vector2 mousePos = input->GetMousePosition();
-
-		if (input->IsPressMouse(0)) { // 左クリックしている間
-			// マウスの移動量を計算
+		if (input->IsPressMouse(0)) {
 			float moveX = mousePos.x - preMousePos_.x;
 			float moveY = mousePos.y - preMousePos_.y;
-			const float sensitivity = 0.01f; // 感度
-
-			// 角度を加算（Y軸は横回転、X軸は縦回転）
+			const float sensitivity = 0.01f;
 			debugCameraRot_.y += moveX * sensitivity;
 			debugCameraRot_.x += moveY * sensitivity;
 		}
-
-		// ★常に最新のマウス位置を保存（クリック開始時のズレ防止）
 		preMousePos_ = mousePos;
+		camWT.rotation_ = debugCameraRot_;
 
-		// 計算した角度をカメラに適用
-		worldTransform.rotation_ = debugCameraRot_;
-
-		// --- (B) キーボードで移動 (WASD + Space/Shift) ---
-		const float moveSpeed = 1.0f; // 移動スピード
+		const float moveSpeed = 1.0f;
 		Vector3 velocity = {0, 0, 0};
-
-		// カメラが向いている方向（Y軸回転）に合わせて移動ベクトルを作る
-		// (これをしないと、横を向いてもWキーで北に進んでしまう)
-		Matrix4x4 matRotY = MakeRotateYMatrix(worldTransform.rotation_.y);
+		Matrix4x4 matRotY = MakeRotateYMatrix(camWT.rotation_.y);
 
 		if (input->PushKey(DIK_UP))
-			velocity.z += moveSpeed; // 前
+			velocity.z += moveSpeed;
 		if (input->PushKey(DIK_DOWN))
-			velocity.z -= moveSpeed; // 後
+			velocity.z -= moveSpeed;
 		if (input->PushKey(DIK_LEFT))
-			velocity.x -= moveSpeed; // 左
+			velocity.x -= moveSpeed;
 		if (input->PushKey(DIK_RIGHT))
-			velocity.x += moveSpeed; // 右
+			velocity.x += moveSpeed;
 
-		// 移動方向をカメラの向きに合わせて回転
 		velocity = TransformNormal(velocity, matRotY);
-
-		// 上下移動
 		if (input->PushKey(DIK_SPACE))
-			velocity.y += moveSpeed; // 上昇
+			velocity.y += moveSpeed;
 		if (input->PushKey(DIK_LSHIFT))
-			velocity.y -= moveSpeed; // 下降
+			velocity.y -= moveSpeed;
 
-		// 座標に加算
-		worldTransform.translation_.x += velocity.x;
-		worldTransform.translation_.y += velocity.y;
-		worldTransform.translation_.z += velocity.z;
-
-		// デバッグ中もカメラ行列の更新が必要
+		camWT.translation_ += velocity;
 		railCamera_.Update();
 
 	} else {
-		// ▼▼▼ ゲーム本編モード（レール移動） ▼▼▼
-
-		// ★既存の switch文 をここにそのまま入れます
 		switch (phase_) {
 		case Phase::kWait:
 			timer_ += 1.0f / 60.0f;
@@ -198,21 +136,14 @@ void GameScene::Update() {
 			break;
 
 		case Phase::kMove: {
-			// ----------------------------------------------------
-			// 0. スプライン進行 (既存のまま)
-			// ----------------------------------------------------
 			splineT_ += moveSpeed_;
 			if (splineT_ >= 1.0f) {
 				splineT_ = 1.0f;
 				phase_ = Phase::kEnd;
 			}
 
-			// ----------------------------------------------------
-			// 1. キー入力による移動 (WASD)
-			// ----------------------------------------------------
 			Vector3 moveInput = {0, 0, 0};
-			float playerSpeed = 0.3f; // プレイヤーの移動速度
-
+			float playerSpeed = 0.3f;
 			if (input->PushKey(DIK_W))
 				moveInput.y += playerSpeed;
 			if (input->PushKey(DIK_S))
@@ -222,79 +153,41 @@ void GameScene::Update() {
 			if (input->PushKey(DIK_A))
 				moveInput.x -= playerSpeed;
 
-			// ローカル座標に加算
 			playerLocalPos_.x += moveInput.x;
 			playerLocalPos_.y += moveInput.y;
 
-			// ★移動制限（画面外に出ないように制限）
-			// 画面サイズに合わせて数値は調整してください
 			const float kLimitX = 14.0f;
 			const float kLimitY = 9.0f;
 			playerLocalPos_.x = std::clamp(playerLocalPos_.x, -kLimitX, kLimitX);
 			playerLocalPos_.y = std::clamp(playerLocalPos_.y, -kLimitY, kLimitY);
 
-			// ----------------------------------------------------
-			// 2. レール上の座標計算 (カメラ用)
-			// ----------------------------------------------------
 			Vector3 railPos = CatmullRomSpline(splineControlPoints_, splineT_);
 
-			// カメラの位置更新
-			worldTransform.translation_.x = railPos.x;
-			worldTransform.translation_.y = railPos.y;
-			// worldTransform.translation_.z = railPos.z; // Z移動なし設定のまま
+			camWT.translation_.x = railPos.x;
+			camWT.translation_.y = railPos.y;
+			camWT.rotation_ = {0, 0, 0};
 
-			// カメラ回転は固定（酔い防止）
-			worldTransform.rotation_ = {0.0f, 0.0f, 0.0f};
+			playerWorldTransform_.translation_.x = camWT.translation_.x + playerLocalPos_.x;
+			playerWorldTransform_.translation_.y = camWT.translation_.y + playerLocalPos_.y;
+			playerWorldTransform_.translation_.z = camWT.translation_.z + 15.0f;
 
-			// ----------------------------------------------------
-			// 3. 自機の座標計算 (レール位置 + WASD操作分)
-			// ----------------------------------------------------
-
-			// ★ここが重要：レールの位置に、操作した分(LocalPos)を足す
-			playerWorldTransform_.translation_.x = worldTransform.translation_.x + playerLocalPos_.x;
-			playerWorldTransform_.translation_.y = worldTransform.translation_.y + playerLocalPos_.y;
-
-			// Z座標：カメラより少し前(15.0f)に固定する
-			// ※もし奥に進ませたいなら railPos.z を使いますが、今回は固定でいきます
-			playerWorldTransform_.translation_.z = worldTransform.translation_.z + 15.0f;
-
-			// ----------------------------------------------------
-			// 4. 自機の回転制御 (レール挙動 + 入力連動)
-			// ----------------------------------------------------
-
-			// レールの未来位置を取得してカーブを予測
-			float lookAheadT = splineT_ + 0.002f;
-			if (lookAheadT > 1.0f)
-				lookAheadT = 1.0f;
+			float lookAheadT = min(splineT_ + 0.002f, 1.0f);
 			Vector3 nextRailPos = CatmullRomSpline(splineControlPoints_, lookAheadT);
-
-			// レール自体の移動量
 			float railVelX = nextRailPos.x - railPos.x;
 			float railVelY = nextRailPos.y - railPos.y;
 
-			// 各種感度
-			float bankStrength = 0.1f;      // レールのカーブに対する傾き
-			float inputBankStrength = 0.2f; // キー入力に対する傾き(クイッと動く感じ)
-
-			// 目標とする角度を計算
-			// 「レールのカーブ(-railVelX)」 と 「自分の操作(-moveInput.x)」 の両方を反映
+			float bankStrength = 0.1f;
+			float inputBankStrength = 0.2f;
 			float targetRotZ = -(railVelX * bankStrength) - (moveInput.x * inputBankStrength);
 			float targetRotX = -(railVelY * bankStrength) - (moveInput.y * inputBankStrength);
 
-			// 制限 (最大45度 = 約0.8ラジアン)
 			playerWorldTransform_.rotation_.z = std::clamp(targetRotZ, -0.8f, 0.8f);
 			playerWorldTransform_.rotation_.x = std::clamp(targetRotX, -0.8f, 0.8f);
-
-			// 少し旋回（ヨー）を入れると自然になります
 			playerWorldTransform_.rotation_.y = (moveInput.x * 0.1f);
 
-			// ----------------------------------------------------
-			// 5. 行列更新
-			// ----------------------------------------------------
 			playerWorldTransform_.matWorld_ = MakeAffineMatrix(playerWorldTransform_.scale_, playerWorldTransform_.rotation_, playerWorldTransform_.translation_);
 			playerWorldTransform_.TransferMatrix();
 
-			// プレイヤー本体へ反映
 			player_.GetWorldTransform().translation_ = playerWorldTransform_.translation_;
 			player_.GetWorldTransform().rotation_ = playerWorldTransform_.rotation_;
 
@@ -302,153 +195,40 @@ void GameScene::Update() {
 			break;
 		}
 		case Phase::kEnd:
-			// ★ ゴール判定：クリアシーンへ
 			SceneManager::GetInstance()->ChangeScene(new ClearScene());
 			break;
 		}
 	}
 
-	// ==================================================
-	// 3. 共通更新処理
-	// ==================================================
-
-	// 天球
 	skydome_.Update();
-
-	// プレイヤー
 	player_.Update();
-
-	// 地面（海）の位置をカメラに合わせる
 	ground_.Update(railCamera_.GetWorldTransform().matWorld_);
 
-	// エネミー群更新 (EnemyManagerを使用)
+	// ★ EnemyManager のみ更新
 	if (enemyManager_)
 		enemyManager_->Update();
 
-	// 当たり判定
 	CheckAllCollisions();
-}
-
-static inline float DistSq(const Vector3& a, const Vector3& b) {
-	float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
-	return dx * dx + dy * dy + dz * dz;
-}
-
-void GameScene::CheckAllCollisions() {
-	using KamataEngine::Vector3;
-
-	auto distSq = [](const Vector3& a, const Vector3& b) {
-		float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
-		return dx * dx + dy * dy + dz * dz;
-	};
-
-	const Vector3 playerPos = player_.GetPosition();
-	const float rPlayer = player_.GetCollisionRadius();
-	const auto& pbs = player_.GetBullets();
-
-	// ── 汎用：プレイヤー vs 任意の敵弾配列（半径は弾ごとに取得） ──
-	auto collidePlayerVsBullets = [&](const auto& bullets) {
-		for (auto* b : bullets) {
-			if (!b || b->IsDead())
-				continue;
-			float rr = rPlayer + b->GetCollisionRadius();
-			if (distSq(playerPos, b->GetPosition()) <= rr * rr) {
-				player_.OnCollision(); // ★ HP減少
-				b->OnCollision();      // 弾は消す
-			}
-		}
-	};
-
-	// ── 汎用：自弾 vs 敵本体（自弾だけ消す） ──
-	auto collidePlayerBulletsVsEnemyBody = [&](const Vector3& enemyPos, float rEnemy) {
-		for (auto* pb : pbs) {
-			if (!pb || pb->IsDead())
-				continue;
-			float rr = rEnemy + pb->GetCollisionRadius();
-			if (distSq(enemyPos, pb->GetPosition()) <= rr * rr) {
-				pb->OnCollision(); // 自弾は消す
-				                   // 敵本体：必要なら OnCollision() を呼ぶ
-			}
-		}
-	};
-
-	// ── 汎用：自弾 vs 任意の敵弾配列（相殺） ──
-	auto collidePlayerBulletsVsEnemyBullets = [&](const auto& bullets) {
-		for (auto* pb : pbs) {
-			if (!pb || pb->IsDead())
-				continue;
-			const Vector3& pa = pb->GetPosition();
-			const float rPB = pb->GetCollisionRadius();
-			for (auto* eb : bullets) {
-				if (!eb || eb->IsDead())
-					continue;
-				float rr = rPB + eb->GetCollisionRadius();
-				if (distSq(pa, eb->GetPosition()) <= rr * rr) {
-					pb->OnCollision();
-					eb->OnCollision();
-				}
-			}
-		}
-	};
-
-	// ★ EnemyManager の敵リストを参照して判定
-	if (enemyManager_) {
-		// 1. プレイヤー vs 敵弾
-		for (auto* e : enemyManager_->GetEnemies())
-			collidePlayerVsBullets(e->GetBullets());
-		for (auto* e : enemyManager_->GetAimers())
-			collidePlayerVsBullets(e->GetBullets());
-		for (auto* e : enemyManager_->GetHomings())
-			collidePlayerVsBullets(e->GetBullets());
-
-		// 2. 自弾 vs 敵本体
-		for (auto* e : enemyManager_->GetEnemies())
-			collidePlayerBulletsVsEnemyBody(e->GetPosition(), e->GetCollisionRadius());
-		for (auto* e : enemyManager_->GetAimers())
-			collidePlayerBulletsVsEnemyBody(e->GetPosition(), e->GetCollisionRadius());
-		for (auto* e : enemyManager_->GetHomings())
-			collidePlayerBulletsVsEnemyBody(e->GetPosition(), e->GetCollisionRadius());
-
-		// 3. 自弾 vs 敵弾（相殺）
-		for (auto* e : enemyManager_->GetEnemies())
-			collidePlayerBulletsVsEnemyBullets(e->GetBullets());
-		for (auto* e : enemyManager_->GetAimers())
-			collidePlayerBulletsVsEnemyBullets(e->GetBullets());
-		for (auto* e : enemyManager_->GetHomings())
-			collidePlayerBulletsVsEnemyBullets(e->GetBullets());
-	}
 }
 
 void GameScene::Draw() {
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-
-	// 2D
 	Sprite::PreDraw(dxCommon->GetCommandList());
 	Sprite::PostDraw();
-
-	// 3D
 	Model::PreDraw(dxCommon->GetCommandList());
-	// レールカメラの Camera を使う
+
 	Camera& cam = railCamera_.GetCamera();
-
-	// プレイヤー
 	player_.Draw(cam);
-
-	// エネミー群 (EnemyManager)
-	if (enemyManager_) {
+	if (enemyManager_)
 		enemyManager_->Draw(cam);
-	}
-
-	// 天球
 	skydome_.Draw(cam);
-	// 地面
 	ground_.Draw(cam);
+
 	Model::PostDraw();
 
 	if (splinePoints_.size() >= 2) {
 		auto* drawer = PrimitiveDrawer::GetInstance();
 		drawer->SetCamera(&railCamera_.GetCamera());
-
 		Vector4 color{1.0f, 0.0f, 0.0f, 1.0f};
 		for (size_t i = 1; i < splinePoints_.size(); ++i) {
 			drawer->DrawLine3d(splinePoints_[i - 1], splinePoints_[i], color);
@@ -456,26 +236,74 @@ void GameScene::Draw() {
 	}
 }
 
-GameScene::~GameScene() {
+void GameScene::CheckAllCollisions() {
+	if (!enemyManager_)
+		return;
 
-	delete modelSkydome_;
-	modelSkydome_ = nullptr;
+	auto distSq = [](const Vector3& a, const Vector3& b) {
+		float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+		return dx * dx + dy * dy + dz * dz;
+	};
 
-	delete groundModel_;
-	groundModel_ = nullptr;
+	Vector3 playerPos = player_.GetPosition();
+	float rPlayer = player_.GetCollisionRadius();
+	const auto& playerBullets = player_.GetBullets();
 
-	delete enemyManager_;
-	enemyManager_ = nullptr;
+	auto collidePlayerVsBullets = [&](const auto& bullets) {
+		for (auto* b : bullets) {
+			if (!b || b->IsDead())
+				continue;
+			float r = rPlayer + b->GetCollisionRadius();
+			if (distSq(playerPos, b->GetPosition()) <= r * r) {
+				player_.OnCollision();
+				b->OnCollision();
+			}
+		}
+	};
 
-	/*delete enemyModel_;
-	enemyModel_ = nullptr;
+	auto collidePBulletVsEnemy = [&](const Vector3& ePos, float eRad, auto* enemy) {
+		for (auto* pb : playerBullets) {
+			if (!pb || pb->IsDead())
+				continue;
+			float r = eRad + pb->GetCollisionRadius();
+			if (distSq(ePos, pb->GetPosition()) <= r * r) {
+				pb->OnCollision();
+				if (enemy)
+					enemy->OnCollision(); // 敵側の被弾処理
+			}
+		}
+	};
 
-	delete enemyAimerModel_;
-	enemyAimerModel_ = nullptr;
+	auto collidePBulletVsEBullet = [&](const auto& eBullets) {
+		for (auto* pb : playerBullets) {
+			if (!pb || pb->IsDead())
+				continue;
+			for (auto* eb : eBullets) {
+				if (!eb || eb->IsDead())
+					continue;
+				float r = pb->GetCollisionRadius() + eb->GetCollisionRadius();
+				if (distSq(pb->GetPosition(), eb->GetPosition()) <= r * r) {
+					pb->OnCollision();
+					eb->OnCollision();
+				}
+			}
+		}
+	};
 
-	delete enemyHomingModel_;
-	enemyHomingModel_ = nullptr*/;
-
-	delete playerModel_;
-	playerModel_ = nullptr;
+	// EnemyManager から取得して判定
+	for (auto* e : enemyManager_->GetEnemies()) {
+		collidePlayerVsBullets(e->GetBullets());
+		collidePBulletVsEnemy(e->GetPosition(), e->GetCollisionRadius(), e);
+		collidePBulletVsEBullet(e->GetBullets());
+	}
+	for (auto* e : enemyManager_->GetAimers()) {
+		collidePlayerVsBullets(e->GetBullets());
+		collidePBulletVsEnemy(e->GetPosition(), e->GetCollisionRadius(), e);
+		collidePBulletVsEBullet(e->GetBullets());
+	}
+	for (auto* e : enemyManager_->GetHomings()) {
+		collidePlayerVsBullets(e->GetBullets());
+		collidePBulletVsEnemy(e->GetPosition(), e->GetCollisionRadius(), e);
+		collidePBulletVsEBullet(e->GetBullets());
+	}
 }

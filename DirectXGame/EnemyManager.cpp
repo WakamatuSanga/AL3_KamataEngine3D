@@ -3,35 +3,58 @@
 
 using namespace KamataEngine;
 
+EnemyManager::~EnemyManager() {
+	// リスト内の敵を削除
+	for (auto* e : enemies_)
+		delete e;
+	for (auto* e : aimers_)
+		delete e;
+	for (auto* e : homings_)
+		delete e;
+	enemies_.clear();
+	aimers_.clear();
+	homings_.clear();
+
+	// モデルの削除
+	delete enemyModel_;
+	delete enemyAimerModel_;
+	delete enemyHomingModel_;
+	delete normalBulletModel_;
+	delete homingBulletModel_;
+}
+
 void EnemyManager::Initialize(Player* player) {
 	player_ = player;
 
-	// モデルロード
+	// モデル読み込み
 	enemyModel_ = Model::CreateFromOBJ("enemy");
-	enemyAimerModel_ = Model::CreateFromOBJ("enemy");
-	enemyHomingModel_ = Model::CreateFromOBJ("enemy");
-
-	normalBulletModel_ = Model::CreateFromOBJ("enemyBullet");
-	homingBulletModel_ = Model::CreateFromOBJ("homingBullet");
-
-	// モデル読み込み失敗時のフォールバック
 	if (!enemyModel_)
 		enemyModel_ = Model::Create();
+
+	enemyAimerModel_ = Model::CreateFromOBJ("enemy");
 	if (!enemyAimerModel_)
 		enemyAimerModel_ = Model::Create();
+
+	enemyHomingModel_ = Model::CreateFromOBJ("enemy");
 	if (!enemyHomingModel_)
 		enemyHomingModel_ = Model::Create();
+
+	normalBulletModel_ = Model::CreateFromOBJ("enemyBullet");
 	if (!normalBulletModel_)
 		normalBulletModel_ = Model::Create();
+
+	homingBulletModel_ = Model::CreateFromOBJ("homingBullet");
 	if (!homingBulletModel_)
 		homingBulletModel_ = Model::Create();
 
+	// 敵発生データの読み込み
 	LoadEnemyData();
 	timer_ = 0.0f;
 }
 
 void EnemyManager::LoadEnemyData() {
-	// フォーマット: "発生時間, 敵タイプ(0-2), X, Y, Z"
+	// CSV形式の文字列データ (時間, タイプ, x, y, z)
+	// type: 0=通常, 1=自機狙い, 2=ホーミング
 	std::string csvText = R"(
 		1.0, 0,  -5, 0, 40
 		1.5, 0,   5, 0, 40
@@ -89,19 +112,22 @@ void EnemyManager::Update() {
 
 		if (data.type == 0) { // Enemy
 			Enemy* newEnemy = new Enemy();
-			newEnemy->Initialize(enemyModel_, normalBulletModel_);
+			newEnemy->Initialize(enemyModel_);
+			// ★ SetPosition が実装されたのでコメントアウト解除
 			newEnemy->SetPosition(data.position);
 			enemies_.push_back(newEnemy);
 
 		} else if (data.type == 1) { // Aimer
 			EnemyAimer* newAimer = new EnemyAimer();
-			newAimer->Initialize(enemyAimerModel_, normalBulletModel_, player_);
+			newAimer->Initialize(enemyAimerModel_, player_);
+			// ★ SetPosition が実装されたのでコメントアウト解除
 			newAimer->SetPosition(data.position);
 			aimers_.push_back(newAimer);
 
 		} else if (data.type == 2) { // Homing
 			EnemyHoming* newHoming = new EnemyHoming();
-			newHoming->Initialize(enemyHomingModel_, homingBulletModel_, player_);
+			newHoming->Initialize(enemyHomingModel_, player_);
+			// ★ SetPosition が実装されたのでコメントアウト解除
 			newHoming->SetPosition(data.position);
 			homings_.push_back(newHoming);
 		}
@@ -133,22 +159,4 @@ void EnemyManager::Draw(Camera& camera) {
 		e->Draw(camera);
 	for (auto* e : homings_)
 		e->Draw(camera);
-}
-
-EnemyManager::~EnemyManager() {
-	for (auto* e : enemies_)
-		delete e;
-	for (auto* e : aimers_)
-		delete e;
-	for (auto* e : homings_)
-		delete e;
-	enemies_.clear();
-	aimers_.clear();
-	homings_.clear();
-
-	delete enemyModel_;
-	delete enemyAimerModel_;
-	delete enemyHomingModel_;
-	delete normalBulletModel_;
-	delete homingBulletModel_;
 }

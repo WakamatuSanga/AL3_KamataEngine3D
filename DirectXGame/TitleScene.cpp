@@ -1,7 +1,6 @@
 #include "TitleScene.h"
 #include "GameScene.h"
 #include "SceneManager.h"
-#include <imgui.h>
 
 using namespace KamataEngine;
 
@@ -19,13 +18,6 @@ void TitleScene::Update() {
 }
 
 void TitleScene::Draw() {
-	// 文字表示（本来はSpriteなどが望ましいですが、ImGuiで代用）
-	ImGui::Begin("TITLE SCREEN", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-	ImGui::SetWindowFontScale(2.0f);
-	ImGui::Text("RAIL SHOOTER GAME");
-	ImGui::Separator();
-	ImGui::Text("Press SPACE to Start");
-	ImGui::End();
 }
 
 TitleScene::~TitleScene() {

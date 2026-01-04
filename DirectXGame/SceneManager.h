@@ -6,7 +6,6 @@ public:
 	// シングルトンインスタンスの取得
 	static SceneManager* GetInstance();
 
-	// 次のシーンを予約する（引数には new されたシーンを渡す）
 	void ChangeScene(IScene* newScene);
 
 	// 更新処理（シーン切り替え処理もここで行う）
@@ -19,7 +18,7 @@ public:
 	void Finalize();
 
 private:
-	// コンストラクタを隠蔽（シングルトン）
+	// コンストラクタを隠蔽（シングルトンパターン）
 	SceneManager() = default;
 	~SceneManager() = default;
 	SceneManager(const SceneManager&) = delete;

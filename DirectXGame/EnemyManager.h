@@ -18,14 +18,23 @@ struct EnemySpawnData {
 
 class EnemyManager {
 public:
-	void Initialize(Player* player);
-	void Update();
-	void Draw(KamataEngine::Camera& camera);
+	// コンストラクタ・デストラクタ
+	EnemyManager() = default;
 	~EnemyManager();
 
+	// 初期化
+	void Initialize(Player* player);
+
+	// 更新
+	void Update();
+
+	// 描画
+	void Draw(KamataEngine::Camera& camera);
+
+	// 敵データの読み込み
 	void LoadEnemyData();
 
-	// 外部参照用も vector に変更
+	// 外部参照用（GameSceneでの当たり判定などで使用）
 	const std::vector<Enemy*>& GetEnemies() const { return enemies_; }
 	const std::vector<EnemyAimer*>& GetAimers() const { return aimers_; }
 	const std::vector<EnemyHoming*>& GetHomings() const { return homings_; }
@@ -33,19 +42,21 @@ public:
 private:
 	Player* player_ = nullptr;
 
-	// モデル
+	// モデル（Managerが一括で管理して使い回す）
 	KamataEngine::Model* enemyModel_ = nullptr;
 	KamataEngine::Model* enemyAimerModel_ = nullptr;
 	KamataEngine::Model* enemyHomingModel_ = nullptr;
+
+	// 弾モデル
 	KamataEngine::Model* normalBulletModel_ = nullptr;
 	KamataEngine::Model* homingBulletModel_ = nullptr;
 
-	// アクティブな敵リスト：vector に変更
+	// アクティブな敵リスト
 	std::vector<Enemy*> enemies_;
 	std::vector<EnemyAimer*> aimers_;
 	std::vector<EnemyHoming*> homings_;
 
-	// スポーン待機リスト（こちらは先頭削除を行うため list のままが効率的です）
+	// スポーン待機リスト
 	std::list<EnemySpawnData> spawnList_;
 	float timer_ = 0.0f;
 };

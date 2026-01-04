@@ -1,14 +1,14 @@
 #include "EnemyHoming.h"
 #include "MyMath.h"
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 using namespace KamataEngine;
 
 EnemyHoming::~EnemyHoming() {
 	for (auto* b : bullets_)
 		delete b;
 	bullets_.clear();
-	delete bulletModel_; // 共有管理なら削除不要。プロジェクト方針に合わせて。
+	// bulletModel_ は適宜
 }
 
 float EnemyHoming::GetCollisionRadius() const {
@@ -21,13 +21,13 @@ float EnemyHoming::GetCollisionRadius() const {
 void EnemyHoming::Initialize(Model* model, Player* player) {
 	model_ = model;
 	player_ = player;
+	isDead_ = false;
 
 	worldTransform_.Initialize();
 	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
 	worldTransform_.rotation_ = {0.0f, 0.0f, 0.0f};
-	worldTransform_.translation_ = {-4.0f, 1.0f, 25.0f}; // 例：左上・奥から
+	worldTransform_.translation_ = {0.0f, 0.0f, 40.0f};
 
-	// 弾モデル（OBJが無ければプリミティブへフォールバック）
 	bulletModel_ = Model::CreateFromOBJ("homingBullet");
 	if (!bulletModel_)
 		bulletModel_ = Model::Create();
@@ -46,21 +46,14 @@ void EnemyHoming::FireHomingBullet_() {
 	bullets_.push_back(b);
 }
 
-void EnemyHoming::RespawnIfFar_() {
-	const auto& p = worldTransform_.translation_;
-	if (p.z < -40.0f || std::fabs(p.x) > 40.0f || std::fabs(p.y) > 40.0f) {
-		
-		// 位置リセット（軽くランダムでもOK）
-		worldTransform_.translation_ = {-4.0f, 1.0f, 25.0f};
-		shotTimer_ = 0;
-	}
-}
-
 void EnemyHoming::Update() {
-	// 手前へ移動
+	if (isDead_)
+		return;
+
+	// 移動
 	worldTransform_.translation_.z += moveSpeedZ_;
 
-	// 一定間隔で発射
+	// 発射
 	++shotTimer_;
 	if (shotTimer_ >= shotInterval_) {
 		shotTimer_ = 0;
@@ -71,7 +64,7 @@ void EnemyHoming::Update() {
 	worldTransform_.matWorld_ = MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);
 	worldTransform_.TransferMatrix();
 
-	// 弾更新＆掃除
+	// 弾更新
 	for (auto it = bullets_.begin(); it != bullets_.end();) {
 		auto* b = *it;
 		b->Update();
@@ -83,11 +76,16 @@ void EnemyHoming::Update() {
 		}
 	}
 
-	// 範囲外で再出現
-	RespawnIfFar_();
+	// 画面外死亡
+	const auto& p = worldTransform_.translation_;
+	if (p.z < -40.0f || std::fabs(p.x) > 40.0f || std::fabs(p.y) > 40.0f) {
+		isDead_ = true;
+	}
 }
 
 void EnemyHoming::Draw(Camera& camera) {
+	if (isDead_)
+		return;
 	if (model_)
 		model_->Draw(worldTransform_, camera);
 	for (auto* b : bullets_)
