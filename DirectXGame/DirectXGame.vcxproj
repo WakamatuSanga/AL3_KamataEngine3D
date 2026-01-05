@@ -110,6 +110,7 @@
     <ClCompile Include="Enemy.cpp" />
     <ClCompile Include="EnemyAimer.cpp" />
     <ClCompile Include="EnemyBullet.cpp" />
+    <ClCompile Include="EnemyFollow.cpp" />
     <ClCompile Include="EnemyHoming.cpp" />
     <ClCompile Include="EnemyHomingBullet.cpp" />
     <ClCompile Include="EnemyManager.cpp" />
@@ -205,6 +206,7 @@
     <ClInclude Include="Enemy.h" />
     <ClInclude Include="EnemyAimer.h" />
     <ClInclude Include="EnemyBullet.h" />
+    <ClInclude Include="EnemyFollow.h" />
     <ClInclude Include="EnemyHoming.h" />
     <ClInclude Include="EnemyHomingBullet.h" />
     <ClInclude Include="EnemyManager.h" />

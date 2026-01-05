@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
+#include <imgui.h> // デバッグ表示用
 
 using namespace KamataEngine;
 
@@ -23,7 +24,11 @@ void Player::Initialize(Model* model) {
 
 	input_ = Input::GetInstance();
 
-	bulletModel_ = Model::Create();
+	// ★ プレイヤーの弾モデルを "playerBullet.obj" に変更
+	bulletModel_ = Model::CreateFromOBJ("playerBullet");
+	if (!bulletModel_) {
+		bulletModel_ = Model::Create(); // 読み込み失敗時のフォールバック
+	}
 
 	// HP初期化
 	hp_ = 10;
@@ -38,11 +43,11 @@ void Player::SpawnBullet() {
 
 	const float kBulletSpeed = 1.0f;
 
-	// ワールド行列の 3x3 部分で前方向(+Z)を求める
+	// ★ ワールド行列の 3x3 部分で前方向(+Z)を求める
 	Vector3 forwardWorld = TransformNormal({0, 0, 1}, worldTransform_.matWorld_);
 	forwardWorld = Normalized(forwardWorld);
 
-	// プレイヤーのワールド座標
+	// ★ プレイヤーのワールド座標
 	Vector3 spawnPos{
 	    worldTransform_.matWorld_.m[3][0],
 	    worldTransform_.matWorld_.m[3][1],
@@ -111,7 +116,7 @@ void Player::Update() {
 	if (pressed) {
 		SpawnBullet();
 		holdFrames_ = 0;
-		autoFireCounter_ = 0; // リセット
+		autoFireCounter_ = 0; // ★ リセット
 	}
 
 	if (held) {
@@ -120,14 +125,14 @@ void Player::Update() {
 			++autoFireCounter_;
 			if (autoFireCounter_ >= autoFireIntervalFrames_) {
 				SpawnBullet();
-				autoFireCounter_ = 0; // 間隔で発射
+				autoFireCounter_ = 0; // ★ 間隔で発射
 			}
 		}
 	}
 
 	if (released) {
 		holdFrames_ = 0;
-		autoFireCounter_ = 0; // リセット
+		autoFireCounter_ = 0; // ★ リセット
 	}
 
 	// 弾更新＆削除
@@ -151,6 +156,12 @@ void Player::Update() {
 		}
 	}
 
+	// デバッグ表示
+	ImGui::Begin("Player Info");
+	ImGui::Text("HP: %d", hp_);
+	if (invincibilityTimer_ > 0)
+		ImGui::Text("Invincible!");
+	ImGui::End();
 }
 
 void Player::Draw(Camera& camera) {

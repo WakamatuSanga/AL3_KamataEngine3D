@@ -29,7 +29,7 @@ private:
 	Player player_;
 	KamataEngine::Model* playerModel_ = nullptr;
 
-	// 敵管理はこれ一本に
+	// 敵管理
 	EnemyManager* enemyManager_ = nullptr;
 
 	// 天球

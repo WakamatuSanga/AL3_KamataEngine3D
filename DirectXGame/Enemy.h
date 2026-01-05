@@ -9,38 +9,36 @@ public:
 	void Update();
 	void Draw(KamataEngine::Camera& camera);
 	~Enemy();
-	
-	// 当たり判定用
-	void OnCollision() { isDead_ = true; } // 当たったら死亡
+
+	void OnCollision() { isDead_ = true; }
 	float GetCollisionRadius() const;
 
-	// 敵弾リストの貸出し
 	const std::vector<EnemyBullet*>& GetBullets() const { return bullets_; }
 
-	// 座標取得・設定
 	const KamataEngine::Vector3& GetPosition() const { return worldTransform_.translation_; }
 	void SetPosition(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
 
-	// 死亡フラグ
+	// 向きと速度をセットする関数
+	void SetRotation(const KamataEngine::Vector3& rotation) { worldTransform_.rotation_ = rotation; }
+	void SetVelocity(const KamataEngine::Vector3& velocity) { approachVelocity_ = velocity; }
+
 	bool IsDead() const { return isDead_; }
 
 private:
 	KamataEngine::WorldTransform worldTransform_;
 	KamataEngine::Model* model_ = nullptr;
 
-	// 動作フェーズ
 	enum class Phase { Approach, Leave };
 	Phase phase_ = Phase::Approach;
 
 	KamataEngine::Vector3 approachVelocity_{};
 	KamataEngine::Vector3 leaveVelocity_{};
-	
-	bool isDead_ = false; // 死亡フラグ
+
+	bool isDead_ = false;
 
 	void UpdateApproach();
 	void UpdateLeave();
-	
-	// 弾関連
+
 	KamataEngine::Model* bulletModel_ = nullptr;
 	std::vector<EnemyBullet*> bullets_;
 

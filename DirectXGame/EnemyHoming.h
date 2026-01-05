@@ -19,6 +19,8 @@ public:
 
 	const KamataEngine::Vector3& GetPosition() const { return worldTransform_.translation_; }
 	void SetPosition(const KamataEngine::Vector3& position) { worldTransform_.translation_ = position; }
+	
+	void SetRotation(const KamataEngine::Vector3& rotation) { worldTransform_.rotation_ = rotation; }
 
 private:
 	KamataEngine::WorldTransform worldTransform_;
