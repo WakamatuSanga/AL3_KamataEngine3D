@@ -3,7 +3,6 @@
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
-#include <imgui.h> // デバッグ表示用
 
 using namespace KamataEngine;
 
@@ -155,13 +154,6 @@ void Player::Update() {
 			// model_->SetColor({1, 0, 0, 1}); // エンジンに機能があれば
 		}
 	}
-
-	// デバッグ表示
-	ImGui::Begin("Player Info");
-	ImGui::Text("HP: %d", hp_);
-	if (invincibilityTimer_ > 0)
-		ImGui::Text("Invincible!");
-	ImGui::End();
 }
 
 void Player::Draw(Camera& camera) {

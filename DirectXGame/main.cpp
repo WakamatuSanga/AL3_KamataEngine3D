@@ -9,7 +9,7 @@ using namespace KamataEngine;
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// 初期化処理
-	KamataEngine::Initialize(L"レールシューティングゲーム");
+	KamataEngine::Initialize(L"オバキュウム");
 
 	// DirectXCommonインスタンスの取得
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
