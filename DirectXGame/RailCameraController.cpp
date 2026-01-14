@@ -29,13 +29,13 @@ void RailCameraController::Initialize(const Vector3& pos, const Vector3& rot, fl
 
 void RailCameraController::Update() {
 	// ---- Space を押している間だけヨー回転（右回り） ----
-	if (input_ && input_->PushKey(DIK_SPACE)) {
+	/*if (input_ && input_->PushKey(DIK_SPACE)) {
 		float yawPerFrame = 0.01f;
 		if (input_->PushKey(DIK_LSHIFT) || input_->PushKey(DIK_RSHIFT)) {
 			yawPerFrame *= 2.0f;
 		}
 		worldTransform_.rotation_.y += yawPerFrame;
-	}
+	}*/
 
 	// ---- 行列更新 → ビュー更新 ----
 	worldTransform_.matWorld_ = MakeAffineMatrix(worldTransform_.scale_, worldTransform_.rotation_, worldTransform_.translation_);

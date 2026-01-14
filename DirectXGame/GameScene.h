@@ -59,4 +59,7 @@ private:
 	KamataEngine::Vector2 preMousePos_ = {0, 0};
 
 	void CheckAllCollisions();
+
+	// 1フレーム前のレール位置（移動量計算用）
+	KamataEngine::Vector3 preRailPos_ = {0, 0, 0};
 };

@@ -24,9 +24,9 @@ Vector3 operator-(const Vector3& v);
 
 // 2項演算子 (v1 + v2, v1 - v2, v * float)
 const Vector3 operator+(const Vector3& v1, const Vector3& v2);
-const Vector3 operator-(const Vector3& v1, const Vector3& v2); // ★ これを追加しました
+const Vector3 operator-(const Vector3& v1, const Vector3& v2);
 const Vector3 operator*(const Vector3& v1, float s);
-const Vector3 operator*(float s, const Vector3& v1); // float * Vector3 もあると便利
+const Vector3 operator*(float s, const Vector3& v1);
 const Vector3 operator/(const Vector3& v1, float s);
 
 // 複合代入演算子 (+=, -=, *=, /=)
@@ -66,7 +66,10 @@ Matrix4x4 MakeRotateYMatrix(float theta);
 Matrix4x4 MakeRotateZMatrix(float theta);
 Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle);
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate);
+
+// アフィン変換行列の作成
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rot, const Vector3& translate);
+
 Matrix4x4 Inverse(const Matrix4x4& m);
 
 // 行列演算

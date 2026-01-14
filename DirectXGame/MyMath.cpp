@@ -19,7 +19,7 @@ const Vector3 operator+(const Vector3& v1, const Vector3& v2) {
 	return temp += v2;
 }
 
-// ★ 2項 - (これを追加しました)
+// 2項 -
 const Vector3 operator-(const Vector3& v1, const Vector3& v2) {
 	Vector3 temp(v1);
 	return temp -= v2;
@@ -212,6 +212,7 @@ Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
 	return result;
 }
 
+// ★ ここに追加：MakeAffineMatrixの実装
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rot, const Vector3& translate) {
 	Matrix4x4 matScale = MakeScaleMatrix(scale);
 	Matrix4x4 matRotX = MakeRotateXMatrix(rot.x);
@@ -219,6 +220,8 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rot, const Vecto
 	Matrix4x4 matRotZ = MakeRotateZMatrix(rot.z);
 	Matrix4x4 matRot = matRotZ * matRotX * matRotY;
 	Matrix4x4 matTrans = MakeTranslateMatrix(translate);
+
+	// スケール * 回転 * 平行移動 の順で合成
 	return matScale * matRot * matTrans;
 }
 

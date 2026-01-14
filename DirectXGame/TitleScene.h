@@ -10,6 +10,14 @@ public:
 	~TitleScene() override;
 
 private:
-	// タイトルで表示したいモデルなどがあればここに追加
-	// 今はシンプルにImGuiなどで文字を表示します
+	// タイトルロゴ的なモデル
+	KamataEngine::Model* modelTitle_ = nullptr;
+	KamataEngine::WorldTransform wtTitle_;
+
+	// 賑やかし用（プレイヤーモデルなど）
+	KamataEngine::Model* modelChar_ = nullptr;
+	KamataEngine::WorldTransform wtChar_;
+
+	// カメラ
+	KamataEngine::Camera camera_;
 };

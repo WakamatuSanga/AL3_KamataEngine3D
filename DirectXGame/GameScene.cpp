@@ -21,7 +21,7 @@ void GameScene::Initialize() {
 	camera_.UpdateMatrix();
 	PrimitiveDrawer::GetInstance()->Initialize();
 
-	railCamera_.Initialize({0, 2.0f, -10.0f}, {0, 0, 0}, 0.45f, 0.1f, 5000.0f);
+	railCamera_.Initialize({0, 0.0f, -15.0f}, {0, 0, 0}, 0.45f, 0.1f, 5000.0f);
 	playerWorldTransform_.Initialize();
 
 	phase_ = Phase::kWait;
@@ -30,26 +30,44 @@ void GameScene::Initialize() {
 	playerLocalPos_ = {0, 0, 0};
 	isDebugCamera_ = false;
 
-	// コース定義
-	// 高低差なし・緩S字
+	// コース定義（左右なし：X=0 固定）
 	splineControlPoints_ = {
-	    {0.0f,   0.0f, -50.0f }, // start buffer
-	    {0.0f,   0.0f, 0.0f   }, // start
-	    {10.0f,  0.0f, 300.0f },
-        {20.0f,  0.0f, 700.0f },
-        {10.0f,  0.0f, 1100.0f},
-        {-10.0f, 0.0f, 1500.0f},
-	    {-20.0f, 0.0f, 1900.0f},
-        {-15.0f, 0.0f, 2300.0f},
-        {-5.0f,  0.0f, 2700.0f},
-        {0.0f,   0.0f, 3000.0f}, // end
-	    {0.0f,   0.0f, 3100.0f}, // end buffer
-	    {0.0f,   0.0f, 3200.0f}  // end buffer
+	    {0.0f, 0.0f,    -50.0f }, // start buffer
+	    {0.0f, 0.0f,    0.0f   }, // start
+
+	    // 上昇
+	    {0.0f, 10.0f,   300.0f },
+	    {0.0f, 35.0f,   700.0f },
+	    {0.0f, 5.0f,   1100.0f},
+	    {0.0f, -5.0f,  1500.0f},
+	    {0.0f, 15.0f,  1900.0f},
+	    {0.0f, -5.0f,  2300.0f},
+	    {0.0f, 20.0f,  2700.0f}, // 頂上付近
+
+	    // 緩やかに降下
+	    {0.0f, 20.0f,  3100.0f},
+	    {0.0f, -5.0f,  3500.0f},
+	    {0.0f, 20.0f,  3900.0f},
+	    {0.0f, -5.0f,   4300.0f},
+
+	    // 終盤で下へ → すぐ復帰
+	    {0.0f, 15.0f,   4700.0f},
+	    {0.0f, 0.0f,  5100.0f},
+	    {0.0f, 5.0f,  5450.0f},
+	    {0.0f, 40.0f, 5750.0f},
+	    {0.0f, 5.0f, 6000.0f}, // 最下点
+
+	    {0.0f, 6.0f,  6300.0f},
+	    {0.0f, 0.0f,    6600.0f}, // センター復帰
+
+	    {0.0f, 0.0f,    6750.0f}, 
+	    {0.0f, 0.0f,    6850.0f}, 
+	    {0.0f, 0.0f,    7000.0f}  
 	};
 
 
 	splinePoints_.clear();
-	const size_t segmentCount = 500;
+	const size_t segmentCount = 1000;
 	for (size_t i = 0; i <= segmentCount; i++) {
 		float t = (float)i / segmentCount;
 		Vector3 pos = CatmullRomSpline(splineControlPoints_, t);
@@ -69,8 +87,6 @@ void GameScene::Initialize() {
 
 	enemyManager_ = new EnemyManager();
 	enemyManager_->Initialize(&player_);
-
-	// ゴール初期化処理を削除
 }
 
 void GameScene::Update() {
@@ -81,7 +97,7 @@ void GameScene::Update() {
 		return;
 	}
 
-	// デバッグカメラ処理
+	// デバッグカメラ
 	if (input->TriggerKey(DIK_0)) {
 		isDebugCamera_ = !isDebugCamera_;
 		if (isDebugCamera_) {
@@ -127,9 +143,17 @@ void GameScene::Update() {
 		railCamera_.Update();
 
 	} else {
+		// --- メイン更新 ---
+		Vector3 currentRailPos = {0, 0, 0};
+		Vector3 nextRailPos = {0, 0, 1.0f};
+		Vector3 prevRailPos = {0, 0, 0};
+
 		switch (phase_) {
 		case Phase::kWait:
 			timer_ += 1.0f / 60.0f;
+			currentRailPos = CatmullRomSpline(splineControlPoints_, 0.0f);
+			prevRailPos = currentRailPos;
+			nextRailPos = CatmullRomSpline(splineControlPoints_, 0.01f);
 			if (timer_ >= 2.0f) {
 				phase_ = Phase::kMove;
 				splineT_ = 0.0f;
@@ -141,86 +165,121 @@ void GameScene::Update() {
 			break;
 
 		case Phase::kMove: {
-			// 変更: レールが最後まで行っても即クリアにはせず、待機させる
+			float prevT = splineT_;
 			if (splineT_ < 1.0f) {
 				splineT_ += moveSpeed_;
 				if (splineT_ >= 1.0f) {
 					splineT_ = 1.0f;
-					// レール終了。でもクリア遷移はここで行わない
 				}
 			}
 
-			// クリア判定: Follow敵（画面上の敵 ＋ 出現待ちの敵）が全滅したらクリア
+			currentRailPos = CatmullRomSpline(splineControlPoints_, splineT_);
+			prevRailPos = CatmullRomSpline(splineControlPoints_, prevT);
+
+			float lookAheadT = min(splineT_ + 0.005f, 1.0f);
+			nextRailPos = CatmullRomSpline(splineControlPoints_, lookAheadT);
+
 			if (enemyManager_ && enemyManager_->IsAllFollowEnemiesDead()) {
 				phase_ = Phase::kEnd;
 			}
-
-			Vector3 moveInput = {0, 0, 0};
-			float playerSpeed = 0.3f;
-			if (input->PushKey(DIK_W))
-				moveInput.y += playerSpeed;
-			if (input->PushKey(DIK_S))
-				moveInput.y -= playerSpeed;
-			if (input->PushKey(DIK_D))
-				moveInput.x += playerSpeed;
-			if (input->PushKey(DIK_A))
-				moveInput.x -= playerSpeed;
-
-			playerLocalPos_.x += moveInput.x;
-			playerLocalPos_.y += moveInput.y;
-
-			const float kLimitX = 14.0f;
-			const float kLimitY = 9.0f;
-			playerLocalPos_.x = std::clamp(playerLocalPos_.x, -kLimitX, kLimitX);
-			playerLocalPos_.y = std::clamp(playerLocalPos_.y, -kLimitY, kLimitY);
-
-			Vector3 railPos = CatmullRomSpline(splineControlPoints_, splineT_);
-
-			camWT.translation_.x = railPos.x;
-			camWT.translation_.y = railPos.y;
-			camWT.rotation_ = {0, 0, 0};
-
-			playerWorldTransform_.translation_.x = camWT.translation_.x + playerLocalPos_.x;
-			playerWorldTransform_.translation_.y = camWT.translation_.y + playerLocalPos_.y;
-			playerWorldTransform_.translation_.z = camWT.translation_.z + 15.0f;
-
-			float lookAheadT = min(splineT_ + 0.002f, 1.0f);
-			Vector3 nextRailPos = CatmullRomSpline(splineControlPoints_, lookAheadT);
-			float railVelX = nextRailPos.x - railPos.x;
-			float railVelY = nextRailPos.y - railPos.y;
-
-			float bankStrength = 0.1f;
-			float inputBankStrength = 0.2f;
-			float targetRotZ = -(railVelX * bankStrength) - (moveInput.x * inputBankStrength);
-			float targetRotX = -(railVelY * bankStrength) - (moveInput.y * inputBankStrength);
-
-			playerWorldTransform_.rotation_.z = std::clamp(targetRotZ, -0.8f, 0.8f);
-			playerWorldTransform_.rotation_.x = std::clamp(targetRotX, -0.8f, 0.8f);
-			playerWorldTransform_.rotation_.y = (moveInput.x * 0.1f);
-
-			playerWorldTransform_.matWorld_ = MakeAffineMatrix(playerWorldTransform_.scale_, playerWorldTransform_.rotation_, playerWorldTransform_.translation_);
-			playerWorldTransform_.TransferMatrix();
-
-			player_.GetWorldTransform().translation_ = playerWorldTransform_.translation_;
-			player_.GetWorldTransform().rotation_ = playerWorldTransform_.rotation_;
-
-			railCamera_.Update();
 			break;
 		}
 		case Phase::kEnd:
-			// クリアシーンへ遷移
 			SceneManager::GetInstance()->ChangeScene(new ClearScene());
-			break;
+			return;
+		}
+
+		// プレイヤー操作
+		Vector3 moveInput = {0, 0, 0};
+		float playerSpeed = 0.3f;
+		if (input->PushKey(DIK_W))
+			moveInput.y += playerSpeed;
+		if (input->PushKey(DIK_S))
+			moveInput.y -= playerSpeed;
+		if (input->PushKey(DIK_D))
+			moveInput.x += playerSpeed;
+		if (input->PushKey(DIK_A))
+			moveInput.x -= playerSpeed;
+
+		playerLocalPos_.x += moveInput.x;
+		playerLocalPos_.y += moveInput.y;
+
+		const float kLimitX = 9.0f;
+		const float kLimitY = 5.5f;
+		playerLocalPos_.x = std::clamp(playerLocalPos_.x, -kLimitX, kLimitX);
+		playerLocalPos_.y = std::clamp(playerLocalPos_.y, -kLimitY, kLimitY);
+
+		playerWorldTransform_.translation_.x = playerLocalPos_.x;
+		playerWorldTransform_.translation_.y = playerLocalPos_.y;
+		playerWorldTransform_.translation_.z = 0.0f;
+
+		// レールベクトル計算
+		Vector3 railDir = nextRailPos - currentRailPos;
+		float railLen = Length(railDir);
+		if (railLen > 0.0f)
+			railDir = railDir / railLen;
+
+		// プレイヤーのバンク角
+		float bankStrength = 0.1f;
+		float inputBankStrength = 0.2f;
+		float targetRotZ = -(railDir.x * bankStrength) - (moveInput.x * inputBankStrength);
+		float targetRotX = -(railDir.y * bankStrength) - (moveInput.y * inputBankStrength);
+
+		playerWorldTransform_.rotation_.z = std::clamp(targetRotZ, -0.8f, 0.8f);
+		playerWorldTransform_.rotation_.x = std::clamp(targetRotX, -0.8f, 0.8f);
+		playerWorldTransform_.rotation_.y = (moveInput.x * 0.1f);
+
+		playerWorldTransform_.matWorld_ = MakeAffineMatrix(playerWorldTransform_.scale_, playerWorldTransform_.rotation_, playerWorldTransform_.translation_);
+		playerWorldTransform_.TransferMatrix();
+
+		player_.GetWorldTransform().scale_ = playerWorldTransform_.scale_;
+		player_.GetWorldTransform().rotation_ = playerWorldTransform_.rotation_;
+		player_.GetWorldTransform().translation_ = playerWorldTransform_.translation_;
+
+		railCamera_.Update();
+
+		// --- 背景制御 ---
+
+		// 天球: レールのカーブのみ反映
+		float railYaw = std::atan2(railDir.x, railDir.z);
+		float lenXZ = std::sqrt(railDir.x * railDir.x + railDir.z * railDir.z);
+		float railPitch = std::atan2(-railDir.y, lenXZ);
+
+		skydome_.SetPosition({0.0f, 0.0f, 0.0f});
+		skydome_.SetRotation({-railPitch, -railYaw, 0.0f});
+
+		// --- Ground制御 ---
+		// 1. 位置設定 (上下左右移動)
+		//    基準位置: (0, -520, 0)
+		//    左右移動: レールの X 座標の逆 (-currentRailPos.x)
+		//    上下移動: レールの Y 座標の逆 (-currentRailPos.y)
+		//    前後(Z)は回転で表現するため 0 固定
+		Vector3 groundPos = {0.0f, -520.0f, 0.0f};
+		groundPos.x = currentRailPos.x * -1.0f;
+		groundPos.y = -520.0f + (currentRailPos.y * -1.0f); // 基準の高さに加算
+
+		ground_.SetPosition(groundPos);
+
+		// 2. 回転 (前後スクロール表現)
+		//    Z軸方向の移動量を回転角度に変換して渡す
+		Vector3 moveDiff = currentRailPos - prevRailPos;
+		// 今回の移動距離（厳密にはZ成分だけでなく移動量全体を使った方が自然）
+		float moveDist = Length(moveDiff);
+
+		// Ground半径(520.0f)に対する回転角
+		float rotSpeedX = moveDist / 520.0f;
+
+		ground_.Update(rotSpeedX);
+
+		// 敵更新
+		if (enemyManager_) {
+			enemyManager_->Update(railCamera_.GetWorldTransform().matWorld_, railCamera_.GetWorldTransform().rotation_);
 		}
 	}
 
 	skydome_.Update();
 	player_.Update();
-	ground_.Update(railCamera_.GetWorldTransform().matWorld_);
-
-	if (enemyManager_) {
-		enemyManager_->Update(railCamera_.GetWorldTransform().matWorld_, railCamera_.GetWorldTransform().rotation_);
-	}
+	// ground_.Update() は上で呼び出し済み
 
 	CheckAllCollisions();
 }
@@ -240,15 +299,6 @@ void GameScene::Draw() {
 	ground_.Draw(cam);
 
 	Model::PostDraw();
-
-	if (splinePoints_.size() >= 2) {
-		auto* drawer = PrimitiveDrawer::GetInstance();
-		drawer->SetCamera(&railCamera_.GetCamera());
-		Vector4 color{1.0f, 0.0f, 0.0f, 0.0f};
-		for (size_t i = 1; i < splinePoints_.size(); ++i) {
-			drawer->DrawLine3d(splinePoints_[i - 1], splinePoints_[i], color);
-		}
-	}
 }
 
 void GameScene::CheckAllCollisions() {
@@ -284,7 +334,7 @@ void GameScene::CheckAllCollisions() {
 			if (distSq(ePos, pb->GetPosition()) <= r * r) {
 				pb->OnCollision();
 				if (enemy)
-					enemy->OnCollision(); // 敵側の被弾処理
+					enemy->OnCollision();
 			}
 		}
 	};
