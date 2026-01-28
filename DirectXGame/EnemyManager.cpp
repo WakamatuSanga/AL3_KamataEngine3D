@@ -1,7 +1,16 @@
 #include "EnemyManager.h"
 #include "MyMath.h"
+#include <cmath> // std::sin, std::cos
+#include <fstream>
+#include <iostream>
 
 using namespace KamataEngine;
+
+// 乱数ヘルパー（配置をばらつかせる用）
+static float RandF(float minVal, float maxVal) {
+	float r = (float)rand() / RAND_MAX;
+	return minVal + r * (maxVal - minVal);
+}
 
 EnemyManager::~EnemyManager() {
 	for (auto* e : enemies_)
@@ -12,6 +21,9 @@ EnemyManager::~EnemyManager() {
 		delete e;
 	for (auto* e : follows_)
 		delete e;
+	if (boss_)
+		delete boss_;
+
 	enemies_.clear();
 	aimers_.clear();
 	homings_.clear();
@@ -27,6 +39,8 @@ EnemyManager::~EnemyManager() {
 
 void EnemyManager::Initialize(Player* player) {
 	player_ = player;
+
+	// モデル生成
 	enemyModel_ = Model::CreateFromOBJ("enemy");
 	if (!enemyModel_)
 		enemyModel_ = Model::Create();
@@ -43,131 +57,43 @@ void EnemyManager::Initialize(Player* player) {
 	if (!enemyFollowModel_)
 		enemyFollowModel_ = Model::Create();
 
+	// 弾モデル
 	normalBulletModel_ = Model::CreateFromOBJ("enemyBullet");
 	if (!normalBulletModel_)
 		normalBulletModel_ = Model::Create();
+
 	homingBulletModel_ = Model::CreateFromOBJ("homingBullet");
 	if (!homingBulletModel_)
 		homingBulletModel_ = Model::Create();
 
 	LoadEnemyData();
 	timer_ = 0.0f;
-}
 
-// 全滅判定の実装
-bool EnemyManager::IsAllFollowEnemiesDead() const {
-	// 1. 今画面にいる Follow 敵が残っているなら false
-	if (!follows_.empty()) {
-		return false;
-	}
-
-	// 2. まだ出現していないスポーンデータの中に Follow (Type 3) があるなら false
-	for (const auto& data : spawnList_) {
-		if (data.type == 3) {
-			return false;
-		}
-	}
-
-	// 両方なければ全滅
-	return true;
-}
-
-void EnemyManager::LoadEnemyData() {
-	// Type 3 = Follow (カメラ相対固定)
-
-	std::string csvText = R"(
-		# --- WAVE 1: 序盤 ---
-		1.0, 0,  -5, 0, 40
-		1.5, 0,   5, 0, 40
-		2.0, 0,   0, 3, 40
-
-		# --- WAVE 2: Followお試し (左上と右上に常駐) ---
-		4.0, 3,  -6,  4, 25
-		4.5, 3,   6,  4, 25
-
-		# --- WAVE 3: 自機狙いとの連携 ---
-		7.0, 1, -10, 5, 60
-		7.5, 1,  10, 5, 60
-		8.0, 3,   0, -5, 30
-		
-		# --- WAVE 4: Follow増量 (囲み) ---
-		12.0, 3, -10,  6, 30
-		12.0, 3,  10,  6, 30
-		12.2, 3,  -5,  3, 25
-		12.2, 3,   5,  3, 25
-
-		# --- WAVE 5: Homingとの波状攻撃 ---
-		16.0, 2,  -8, 5, 60
-		16.5, 2,   8, 5, 60
-		17.0, 3,   0, 8, 30
-		17.5, 3,   0, -5, 30
-
-		# --- WAVE 6: 上下からの挟み撃ちFollow ---
-		22.0, 3,  -8,  8, 25
-		22.0, 3,   8,  8, 25
-		22.5, 3,  -8, -8, 25
-		22.5, 3,   8, -8, 25
-		
-		# --- WAVE 7: 縦一列 ---
-		26.0, 3,   6,  6, 30
-		26.2, 3,   6,  3, 30
-		26.4, 3,   6,  0, 30
-		26.6, 3,   6, -3, 30
-		26.8, 3,   6, -6, 30
-		
-		# --- WAVE 8: ラッシュ ---
-		30.0, 0,  -5, 0, 40
-		30.2, 0,   5, 0, 40
-		30.4, 1,   0, 10, 50
-		31.0, 3,  -8, 0, 20
-		31.0, 3,   8, 0, 20
-		32.0, 2,   0, 0, 60
-	)";
-
-	std::stringstream ss(csvText);
-	std::string line;
-	spawnList_.clear();
-	while (std::getline(ss, line)) {
-		if (line.empty() || line.length() < 5 || line[0] == '#' || (line.find_first_not_of(" \t") != std::string::npos && line[line.find_first_not_of(" \t")] == '#'))
-			continue;
-
-		std::stringstream lineSs(line);
-		std::string segment;
-		std::vector<std::string> segs;
-		while (std::getline(lineSs, segment, ',')) {
-			segs.push_back(segment);
-		}
-		if (segs.size() >= 5) {
-			EnemySpawnData data;
-			data.time = std::stof(segs[0]);
-			data.type = std::stoi(segs[1]);
-			data.position.x = std::stof(segs[2]);
-			data.position.y = std::stof(segs[3]);
-			data.position.z = std::stof(segs[4]);
-			spawnList_.push_back(data);
-		}
-	}
-	spawnList_.sort([](const EnemySpawnData& a, const EnemySpawnData& b) { return a.time < b.time; });
+	boss_ = nullptr;
 }
 
 void EnemyManager::Update(const Matrix4x4& cameraMat, const Vector3& cameraRot) {
 	timer_ += 1.0f / 60.0f;
 
+	// スポーン処理
 	while (!spawnList_.empty()) {
 		const auto& data = spawnList_.front();
-		if (data.time > timer_)
+		if (data.time > timer_) {
 			break;
+		}
 
-		Vector3 spawnWorldPos = Transform(data.position, cameraMat);
+		Vector3 spawnWorldPos = data.position;
 
-		if (data.type == 0) { // Enemy
+		// 雑魚敵はカメラのZ位置を足して奥に出現させる
+		if (data.type != 4) {
+			spawnWorldPos.z += cameraMat.m[3][2];
+		}
+
+		if (data.type == 0) { // Normal
 			Enemy* newEnemy = new Enemy();
 			newEnemy->Initialize(enemyModel_);
 			newEnemy->SetPosition(spawnWorldPos);
 			newEnemy->SetRotation(cameraRot);
-			Vector3 localVel = {0, 0, -0.2f};
-			Vector3 worldVel = TransformNormal(localVel, cameraMat);
-			newEnemy->SetVelocity(worldVel);
 			enemies_.push_back(newEnemy);
 
 		} else if (data.type == 1) { // Aimer
@@ -184,14 +110,23 @@ void EnemyManager::Update(const Matrix4x4& cameraMat, const Vector3& cameraRot) 
 			newHoming->SetRotation(cameraRot);
 			homings_.push_back(newHoming);
 
-		} else if (data.type == 3) { // Follow
+		} else if (data.type == 3) { // Follow (フェアリー)
 			EnemyFollow* newFollow = new EnemyFollow();
+			// Followはカメラからの相対位置で動く
 			newFollow->Initialize(enemyFollowModel_, player_, data.position);
 			follows_.push_back(newFollow);
+
+		} else if (data.type == 4) { // ★ Boss
+			if (!boss_) {
+				boss_ = new EnemyBoss();
+				boss_->Initialize(enemyModel_, normalBulletModel_, homingBulletModel_, player_);
+			}
 		}
+
 		spawnList_.pop_front();
 	}
 
+	// 各敵更新
 	auto updateAndClean = [](auto& vec) {
 		for (auto it = vec.begin(); it != vec.end();) {
 			(*it)->Update();
@@ -203,10 +138,12 @@ void EnemyManager::Update(const Matrix4x4& cameraMat, const Vector3& cameraRot) 
 			}
 		}
 	};
+
 	updateAndClean(enemies_);
 	updateAndClean(aimers_);
 	updateAndClean(homings_);
 
+	// Followはカメラ行列
 	for (auto it = follows_.begin(); it != follows_.end();) {
 		(*it)->Update(cameraMat);
 		if ((*it)->IsDead()) {
@@ -214,6 +151,17 @@ void EnemyManager::Update(const Matrix4x4& cameraMat, const Vector3& cameraRot) 
 			it = follows_.erase(it);
 		} else {
 			++it;
+		}
+	}
+
+	// ボス更新
+	if (boss_) {
+		Vector3 camPos = {cameraMat.m[3][0], cameraMat.m[3][1], cameraMat.m[3][2]};
+		boss_->Update(camPos);
+
+		if (boss_->IsDead()) {
+			delete boss_;
+			boss_ = nullptr;
 		}
 	}
 }
@@ -227,4 +175,120 @@ void EnemyManager::Draw(Camera& camera) {
 		e->Draw(camera);
 	for (auto* e : follows_)
 		e->Draw(camera);
+
+	if (boss_) {
+		boss_->Draw(camera);
+	}
+}
+
+void EnemyManager::LoadEnemyData() {
+	// ★調整方針：
+	// 1. Z位置を40～50と非常に近くして圧迫感を出す
+	// 2. X,Y座標を中央(-10～10程度)に密集させる
+	// 3. 敵の数を増やし、フェアリー(Type 3)を早期投入
+
+	// --- Wave 1: 開幕ラッシュ (2.0s ~ ) ---
+	// 通常敵を中央に縦列配置 (数珠つなぎ)
+	for (int i = 0; i < 5; ++i) {
+		float z = 40.0f + i * 5.0f; // 40, 45, 50... 手前から奥へ
+		spawnList_.push_back({
+		    2.0f + i * 0.3f, 0, {10.0f, 0.0f, z}
+        });
+	}
+	// 早速フェアリーを左右に配置 (プレイヤーの近くにまとわりつく)
+	/*spawnList_.push_back({
+	    3.0f, 3, {-8.0f, 2.0f, 15.0f}
+    });
+	spawnList_.push_back({
+	    3.0f, 3, {8.0f, 2.0f, 15.0f}
+    });*/
+
+	// --- Wave 2: 密集編隊 (5.0s ~ ) ---
+	// 狙い撃ち(Aimer)を中央付近に密集させる
+	spawnList_.push_back({
+	    5.0f, 1, {-5.0f, 5.0f, 50.0f}
+    });
+	spawnList_.push_back({
+	    5.0f, 1, {5.0f, 5.0f, 50.0f}
+    });
+	spawnList_.push_back({
+	    5.5f, 1, {-5.0f, -5.0f, 50.0f}
+    });
+	spawnList_.push_back({
+	    5.5f, 1, {5.0f, -5.0f, 50.0f}
+    });
+	// 中央にフェアリー追加
+	spawnList_.push_back({
+	    6.0f, 3, {0.0f, 5.0f, 40.0f}
+    });
+	spawnList_.push_back({
+	    6.5f, 3, {0.0f, -5.0f, 40.0f}
+    });
+
+	// --- Wave 3: ホーミング＆フェアリー包囲網 (10.0s ~ ) ---
+	// ホーミング敵を円形に配置（中央を取り囲む）
+	int numHoming = 8;
+	for (int i = 0; i < numHoming; ++i) {
+		float angle = (float)i * (6.28f / numHoming);
+		float r = 10.0f; // 半径10と狭く
+		float x = std::cos(angle) * r;
+		float y = std::sin(angle) * r;
+		spawnList_.push_back({
+		    10.0f + i * 0.2f, 2, {x, y, 60.0f}
+        });
+	}
+	//// フェアリーも追加
+	//spawnList_.push_back({
+	//    11.0f, 3, {-12.0f, 0.0f, 25.0f}
+ //   });
+	//spawnList_.push_back({
+	//    11.5f, 3, {12.0f, 0.0f, 25.0f}
+ //   });
+
+	// --- Wave 4: 総力戦 (15.0s ~ ) ---
+	// 画面中央から大量の雑魚敵が湧き出る
+	for (int i = 0; i < 15; ++i) {
+		float t = 15.0f + i * 0.3f;
+		// ランダムに少し散らすが、基本は中央
+		float x = RandF(-8.0f, 8.0f);
+		float y = RandF(-6.0f, 6.0f);
+		spawnList_.push_back({
+		    t, 0, {x, y, 40.0f}
+        });
+	}
+	// 合間にAimerとFollowを混ぜる
+	spawnList_.push_back({
+	    16.0f, 1, {-15.0f, 5.0f, 55.0f}
+    });
+	spawnList_.push_back({
+	    17.0f, 1, {15.0f, -5.0f, 55.0f}
+    });
+	spawnList_.push_back({
+	    18.0f, 3, {0.0f, 5.0f, 15.0f}
+    });
+
+	// --- Boss Battle (25.0s ~ ) ---
+	spawnList_.push_back({
+	    25.0f, 4, {0.0f, 0.0f, 0.0f}
+    });
+}
+
+bool EnemyManager::IsAllFollowEnemiesDead() const {
+	for (const auto& data : spawnList_) {
+		if (data.type == 3)
+			return false;
+	}
+	if (!follows_.empty())
+		return false;
+	return true;
+}
+
+bool EnemyManager::IsBossDead() const {
+	for (const auto& data : spawnList_) {
+		if (data.type == 4)
+			return false;
+	}
+	if (boss_)
+		return false;
+	return true;
 }

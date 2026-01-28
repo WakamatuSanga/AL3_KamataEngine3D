@@ -51,8 +51,6 @@ void GameScene::Initialize() {
 	    {0.0f, 0.0f, 10100.0f}  // end buffer
 	};
 
-
-
 	splinePoints_.clear();
 	const size_t segmentCount = 1000;
 	for (size_t i = 0; i <= segmentCount; i++) {
@@ -71,14 +69,13 @@ void GameScene::Initialize() {
 
 	playerModel_ = Model::CreateFromOBJ("player");
 	player_.Initialize(playerModel_);
-	
+
 	// 雲の初期化
-	     
 	cloudModel_ = Model::CreateFromOBJ("cloud");
 	if (!cloudModel_) {
 		cloudModel_ = Model::Create(); // フォールバック
 	}
-	// 50個くらいの雲を生成
+	// 40個くらいの雲を生成
 	clouds_.Initialize(cloudModel_, 40);
 
 	enemyManager_ = new EnemyManager();
@@ -143,6 +140,7 @@ void GameScene::Update() {
 		Vector3 currentRailPos = {0, 0, 0};
 		Vector3 nextRailPos = {0, 0, 1.0f};
 		Vector3 prevRailPos = {0, 0, 0};
+		float moveSpeed = 0.0005f;
 
 		switch (phase_) {
 		case Phase::kWait:
@@ -163,9 +161,10 @@ void GameScene::Update() {
 		case Phase::kMove: {
 			float prevT = splineT_;
 			if (splineT_ < 1.0f) {
-				splineT_ += moveSpeed_;
+				splineT_ += moveSpeed;
 				if (splineT_ >= 1.0f) {
 					splineT_ = 1.0f;
+					// ボスを倒すまでは終わらないのでここでは遷移しない
 				}
 			}
 
@@ -175,7 +174,8 @@ void GameScene::Update() {
 			float lookAheadT = min(splineT_ + 0.005f, 1.0f);
 			nextRailPos = CatmullRomSpline(splineControlPoints_, lookAheadT);
 
-			if (enemyManager_ && enemyManager_->IsAllFollowEnemiesDead()) {
+			// ★ボスが撃破されたらクリアへ遷移
+			if (enemyManager_ && enemyManager_->IsBossDead()) {
 				phase_ = Phase::kEnd;
 			}
 			break;
@@ -235,8 +235,6 @@ void GameScene::Update() {
 		railCamera_.Update();
 
 		// --- 背景制御 ---
-
-		// 天球: レールのカーブのみ反映
 		float railYaw = std::atan2(railDir.x, railDir.z);
 		float lenXZ = std::sqrt(railDir.x * railDir.x + railDir.z * railDir.z);
 		float railPitch = std::atan2(-railDir.y, lenXZ);
@@ -245,30 +243,17 @@ void GameScene::Update() {
 		skydome_.SetRotation({-railPitch, -railYaw, 0.0f});
 
 		// --- Ground制御 ---
-		// 1. 位置設定 (上下左右移動)
-		//    基準位置: (0, -520, 0)
-		//    左右移動: レールの X 座標の逆 (-currentRailPos.x)
-		//    上下移動: レールの Y 座標の逆 (-currentRailPos.y)
-		//    前後(Z)は回転で表現するため 0 固定
 		Vector3 groundPos = {0.0f, -520.0f, 0.0f};
 		groundPos.x = currentRailPos.x * -1.0f;
-		groundPos.y = -520.0f + (currentRailPos.y * -1.0f); // 基準の高さに加算
-
+		groundPos.y = -520.0f + (currentRailPos.y * -1.0f);
 		ground_.SetPosition(groundPos);
 
-		// 2. 回転 (前後スクロール表現)
-		//    Z軸方向の移動量を回転角度に変換して渡す
 		Vector3 moveDiff = currentRailPos - prevRailPos;
-		// 今回の移動距離（厳密にはZ成分だけでなく移動量全体を使った方が自然）
 		float moveDist = Length(moveDiff);
-
-		// Ground半径(520.0f)に対する回転角
 		float rotSpeedX = moveDist / 520.0f;
-
 		ground_.Update(rotSpeedX);
 
 		// 雲の更新
-		// カメラの「現在の位置」を渡す
 		clouds_.Update(railCamera_.GetWorldTransform().translation_);
 
 		// 敵更新
@@ -279,7 +264,6 @@ void GameScene::Update() {
 
 	skydome_.Update();
 	player_.Update();
-	// ground_.Update() は上で呼び出し済み
 
 	CheckAllCollisions();
 }
@@ -379,5 +363,15 @@ void GameScene::CheckAllCollisions() {
 		collidePlayerVsBullets(e->GetBullets());
 		collidePBulletVsEnemy(e->GetPosition(), e->GetCollisionRadius(), e);
 		collidePBulletVsEBullet(e->GetBullets());
+	}
+
+	// ボス判定
+	EnemyBoss* boss = enemyManager_->GetBoss();
+	if (boss && !boss->IsDead()) {
+		collidePlayerVsBullets(boss->GetBullets());
+		collidePlayerVsBullets(boss->GetHomingBullets());
+		collidePBulletVsEnemy(boss->GetPosition(), boss->GetCollisionRadius(), boss);
+		collidePBulletVsEBullet(boss->GetBullets());
+		collidePBulletVsEBullet(boss->GetHomingBullets());
 	}
 }

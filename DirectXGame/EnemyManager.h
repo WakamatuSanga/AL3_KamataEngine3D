@@ -1,6 +1,7 @@
 #pragma once
 #include "Enemy.h"
 #include "EnemyAimer.h"
+#include "EnemyBoss.h" // ボスをインクルード
 #include "EnemyFollow.h"
 #include "EnemyHoming.h"
 #include "KamataEngine.h"
@@ -26,13 +27,16 @@ public:
 	void Draw(KamataEngine::Camera& camera);
 	void LoadEnemyData();
 
-	// クリア判定用：全てのFollow敵（出現待ち含む）がいなくなったか？
+	// クリア判定用
 	bool IsAllFollowEnemiesDead() const;
+	bool IsBossDead() const;
 
 	const std::vector<Enemy*>& GetEnemies() const { return enemies_; }
 	const std::vector<EnemyAimer*>& GetAimers() const { return aimers_; }
 	const std::vector<EnemyHoming*>& GetHomings() const { return homings_; }
 	const std::vector<EnemyFollow*>& GetFollows() const { return follows_; }
+
+	EnemyBoss* GetBoss() const { return boss_; }
 
 private:
 	Player* player_ = nullptr;
@@ -45,11 +49,13 @@ private:
 	KamataEngine::Model* normalBulletModel_ = nullptr;
 	KamataEngine::Model* homingBulletModel_ = nullptr;
 
+	std::list<EnemySpawnData> spawnList_;
+	float timer_ = 0.0f;
+
 	std::vector<Enemy*> enemies_;
 	std::vector<EnemyAimer*> aimers_;
 	std::vector<EnemyHoming*> homings_;
 	std::vector<EnemyFollow*> follows_;
 
-	std::list<EnemySpawnData> spawnList_;
-	float timer_ = 0.0f;
+	EnemyBoss* boss_ = nullptr;
 };
