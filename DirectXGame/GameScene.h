@@ -4,6 +4,7 @@
 #include "IScene.h"
 #include "KamataEngine.h"
 #include "Player.h"
+#include "Clouds.h"
 #include "RailCameraController.h"
 #include "Skydome.h"
 #include <vector>
@@ -39,6 +40,10 @@ private:
 	// 地面
 	Ground ground_;
 	KamataEngine::Model* groundModel_ = nullptr;
+
+	// 雲
+	Clouds clouds_;
+	KamataEngine::Model* cloudModel_ = nullptr;
 
 	// レールカメラ
 	RailCameraController railCamera_;

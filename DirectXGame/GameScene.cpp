@@ -13,6 +13,7 @@ GameScene::~GameScene() {
 	delete modelSkydome_;
 	delete groundModel_;
 	delete playerModel_;
+	delete cloudModel_;
 	delete enemyManager_;
 }
 
@@ -70,6 +71,15 @@ void GameScene::Initialize() {
 
 	playerModel_ = Model::CreateFromOBJ("player");
 	player_.Initialize(playerModel_);
+	
+	// 雲の初期化
+	     
+	        cloudModel_ = Model::CreateFromOBJ("cloud");
+	if (!cloudModel_) {
+		cloudModel_ = Model::Create(); // フォールバック
+	}
+	// 50個くらいの雲を生成
+	clouds_.Initialize(cloudModel_, 50);
 
 	enemyManager_ = new EnemyManager();
 	enemyManager_->Initialize(&player_);
@@ -257,6 +267,10 @@ void GameScene::Update() {
 
 		ground_.Update(rotSpeedX);
 
+		// 雲の更新
+		// カメラの「現在の位置」を渡す
+		clouds_.Update(railCamera_.GetWorldTransform().translation_);
+
 		// 敵更新
 		if (enemyManager_) {
 			enemyManager_->Update(railCamera_.GetWorldTransform().matWorld_, railCamera_.GetWorldTransform().rotation_);
@@ -282,6 +296,7 @@ void GameScene::Draw() {
 		enemyManager_->Draw(cam);
 
 	skydome_.Draw(cam);
+	clouds_.Draw(cam);
 	ground_.Draw(cam);
 
 	Model::PostDraw();
