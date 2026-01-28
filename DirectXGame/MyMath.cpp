@@ -212,7 +212,33 @@ Matrix4x4 MakeTranslateMatrix(const Vector3& translate) {
 	return result;
 }
 
-// ★ ここに追加：MakeAffineMatrixの実装
+// ★追加：透視投影行列
+Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearZ, float farZ) {
+	float h = 1.0f / std::tan(fovY / 2.0f);
+	float w = h / aspectRatio;
+	Matrix4x4 result{};
+	result.m[0][0] = w;
+	result.m[1][1] = h;
+	result.m[2][2] = farZ / (farZ - nearZ);
+	result.m[2][3] = 1.0f;
+	result.m[3][2] = (-nearZ * farZ) / (farZ - nearZ);
+	result.m[3][3] = 0.0f; // ※透視投影はw成分が1にならないので注意
+	return result;
+}
+
+// ★追加：ビューポート行列
+Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth) {
+	Matrix4x4 result{};
+	result.m[0][0] = width / 2.0f;
+	result.m[1][1] = -height / 2.0f; // Y軸反転（スクリーン座標系へ）
+	result.m[2][2] = maxDepth - minDepth;
+	result.m[3][0] = left + width / 2.0f;
+	result.m[3][1] = top + height / 2.0f;
+	result.m[3][2] = minDepth;
+	result.m[3][3] = 1.0f;
+	return result;
+}
+
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rot, const Vector3& translate) {
 	Matrix4x4 matScale = MakeScaleMatrix(scale);
 	Matrix4x4 matRotX = MakeRotateXMatrix(rot.x);
@@ -226,41 +252,48 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rot, const Vecto
 }
 
 Matrix4x4 Inverse(const Matrix4x4& m) {
-	float a00 = m.m[0][0], a01 = m.m[0][1], a02 = m.m[0][2];
-	float a10 = m.m[1][0], a11 = m.m[1][1], a12 = m.m[1][2];
-	float a20 = m.m[2][0], a21 = m.m[2][1], a22 = m.m[2][2];
-	float tx = m.m[3][0], ty = m.m[3][1], tz = m.m[3][2];
+	float a00 = m.m[0][0], a01 = m.m[0][1], a02 = m.m[0][2], a03 = m.m[0][3];
+	float a10 = m.m[1][0], a11 = m.m[1][1], a12 = m.m[1][2], a13 = m.m[1][3];
+	float a20 = m.m[2][0], a21 = m.m[2][1], a22 = m.m[2][2], a23 = m.m[2][3];
+	float a30 = m.m[3][0], a31 = m.m[3][1], a32 = m.m[3][2], a33 = m.m[3][3];
 
-	float c00 = (a11 * a22 - a12 * a21);
-	float c01 = -(a10 * a22 - a12 * a20);
-	float c02 = (a10 * a21 - a11 * a20);
-	float c10 = -(a01 * a22 - a02 * a21);
-	float c11 = (a00 * a22 - a02 * a20);
-	float c12 = -(a00 * a21 - a01 * a20);
-	float c20 = (a01 * a12 - a02 * a11);
-	float c21 = -(a00 * a12 - a02 * a10);
-	float c22 = (a00 * a11 - a01 * a10);
+	// 4x4の逆行列計算（汎用）
+	float b00 = a00 * a11 - a01 * a10;
+	float b01 = a00 * a12 - a02 * a10;
+	float b02 = a00 * a13 - a03 * a10;
+	float b03 = a01 * a12 - a02 * a11;
+	float b04 = a01 * a13 - a03 * a11;
+	float b05 = a02 * a13 - a03 * a12;
+	float b06 = a20 * a31 - a21 * a30;
+	float b07 = a20 * a32 - a22 * a30;
+	float b08 = a20 * a33 - a23 * a30;
+	float b09 = a21 * a32 - a22 * a31;
+	float b10 = a21 * a33 - a23 * a31;
+	float b11 = a22 * a33 - a23 * a32;
 
-	float det = a00 * c00 + a01 * c01 + a02 * c02;
+	float det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
 	if (std::fabs(det) < 1e-8f)
 		return MakeIdentityMatrix();
 	float invDet = 1.0f / det;
 
 	Matrix4x4 inv{};
-	inv.m[0][0] = c00 * invDet;
-	inv.m[0][1] = c10 * invDet;
-	inv.m[0][2] = c20 * invDet;
-	inv.m[1][0] = c01 * invDet;
-	inv.m[1][1] = c11 * invDet;
-	inv.m[1][2] = c21 * invDet;
-	inv.m[2][0] = c02 * invDet;
-	inv.m[2][1] = c12 * invDet;
-	inv.m[2][2] = c22 * invDet;
-	// 逆平行移動
-	inv.m[3][0] = -(tx * inv.m[0][0] + ty * inv.m[1][0] + tz * inv.m[2][0]);
-	inv.m[3][1] = -(tx * inv.m[0][1] + ty * inv.m[1][1] + tz * inv.m[2][1]);
-	inv.m[3][2] = -(tx * inv.m[0][2] + ty * inv.m[1][2] + tz * inv.m[2][2]);
-	inv.m[3][3] = 1.0f;
+	inv.m[0][0] = (a11 * b11 - a12 * b10 + a13 * b09) * invDet;
+	inv.m[0][1] = (-a01 * b11 + a02 * b10 - a03 * b09) * invDet;
+	inv.m[0][2] = (a31 * b05 - a32 * b04 + a33 * b03) * invDet;
+	inv.m[0][3] = (-a21 * b05 + a22 * b04 - a23 * b03) * invDet;
+	inv.m[1][0] = (-a10 * b11 + a12 * b08 - a13 * b07) * invDet;
+	inv.m[1][1] = (a00 * b11 - a02 * b08 + a03 * b07) * invDet;
+	inv.m[1][2] = (-a30 * b05 + a32 * b02 - a33 * b01) * invDet;
+	inv.m[1][3] = (a20 * b05 - a22 * b02 + a23 * b01) * invDet;
+	inv.m[2][0] = (a10 * b10 - a11 * b08 + a13 * b06) * invDet;
+	inv.m[2][1] = (-a00 * b10 + a01 * b08 - a03 * b06) * invDet;
+	inv.m[2][2] = (a30 * b04 - a31 * b02 + a33 * b00) * invDet;
+	inv.m[2][3] = (-a20 * b04 + a21 * b02 - a23 * b00) * invDet;
+	inv.m[3][0] = (-a10 * b09 + a11 * b07 - a12 * b06) * invDet;
+	inv.m[3][1] = (a00 * b09 - a01 * b07 + a02 * b06) * invDet;
+	inv.m[3][2] = (-a30 * b03 + a31 * b01 - a32 * b00) * invDet;
+	inv.m[3][3] = (a20 * b03 - a21 * b01 + a22 * b00) * invDet;
+
 	return inv;
 }
 

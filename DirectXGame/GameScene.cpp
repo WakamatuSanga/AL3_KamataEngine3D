@@ -31,10 +31,10 @@ void GameScene::Initialize() {
 	playerLocalPos_ = {0, 0, 0};
 	isDebugCamera_ = false;
 
-	// コース定義（上下・左右 極小：完全直線）
+	// コース定義
 	splineControlPoints_ = {
-	    {0.0f, 0.0f, -50.0f  }, // start buffer
-	    {0.0f, 0.0f, 0.0f    }, // start
+	    {0.0f, 0.0f, -50.0f  },
+        {0.0f, 0.0f, 0.0f    },
 
 	    {0.0f, 0.0f, 1000.0f },
         {0.0f, 0.0f, 2000.0f },
@@ -45,11 +45,11 @@ void GameScene::Initialize() {
         {0.0f, 0.0f, 7000.0f },
         {0.0f, 0.0f, 8000.0f },
         {0.0f, 0.0f, 9000.0f },
-        {0.0f, 0.0f, 10000.0f}, // goal
+        {0.0f, 0.0f, 10000.0f},
 
-	    {0.0f, 0.0f, 10050.0f}, // end buffer
-	    {0.0f, 0.0f, 10100.0f}  // end buffer
-	};
+	    {0.0f, 0.0f, 10050.0f},
+        {0.0f, 0.0f, 10100.0f}
+    };
 
 	splinePoints_.clear();
 	const size_t segmentCount = 1000;
@@ -70,13 +70,11 @@ void GameScene::Initialize() {
 	playerModel_ = Model::CreateFromOBJ("player");
 	player_.Initialize(playerModel_);
 
-	// 雲の初期化
 	cloudModel_ = Model::CreateFromOBJ("cloud");
 	if (!cloudModel_) {
-		cloudModel_ = Model::Create(); // フォールバック
+		cloudModel_ = Model::Create();
 	}
-	// 40個くらいの雲を生成
-	clouds_.Initialize(cloudModel_, 40);
+	clouds_.Initialize(cloudModel_, 50);
 
 	enemyManager_ = new EnemyManager();
 	enemyManager_->Initialize(&player_);
@@ -90,7 +88,6 @@ void GameScene::Update() {
 		return;
 	}
 
-	// デバッグカメラ
 	if (input->TriggerKey(DIK_0)) {
 		isDebugCamera_ = !isDebugCamera_;
 		if (isDebugCamera_) {
@@ -140,7 +137,6 @@ void GameScene::Update() {
 		Vector3 currentRailPos = {0, 0, 0};
 		Vector3 nextRailPos = {0, 0, 1.0f};
 		Vector3 prevRailPos = {0, 0, 0};
-		float moveSpeed = 0.0005f;
 
 		switch (phase_) {
 		case Phase::kWait:
@@ -161,10 +157,9 @@ void GameScene::Update() {
 		case Phase::kMove: {
 			float prevT = splineT_;
 			if (splineT_ < 1.0f) {
-				splineT_ += moveSpeed;
+				splineT_ += moveSpeed_;
 				if (splineT_ >= 1.0f) {
 					splineT_ = 1.0f;
-					// ボスを倒すまでは終わらないのでここでは遷移しない
 				}
 			}
 
@@ -174,7 +169,7 @@ void GameScene::Update() {
 			float lookAheadT = min(splineT_ + 0.005f, 1.0f);
 			nextRailPos = CatmullRomSpline(splineControlPoints_, lookAheadT);
 
-			// ★ボスが撃破されたらクリアへ遷移
+			// ボスが撃破されたらクリアへ遷移
 			if (enemyManager_ && enemyManager_->IsBossDead()) {
 				phase_ = Phase::kEnd;
 			}
@@ -209,13 +204,11 @@ void GameScene::Update() {
 		playerWorldTransform_.translation_.y = playerLocalPos_.y;
 		playerWorldTransform_.translation_.z = 0.0f;
 
-		// レールベクトル計算
 		Vector3 railDir = nextRailPos - currentRailPos;
 		float railLen = Length(railDir);
 		if (railLen > 0.0f)
 			railDir = railDir / railLen;
 
-		// プレイヤーのバンク角
 		float bankStrength = 0.1f;
 		float inputBankStrength = 0.2f;
 		float targetRotZ = -(railDir.x * bankStrength) - (moveInput.x * inputBankStrength);
@@ -234,7 +227,6 @@ void GameScene::Update() {
 
 		railCamera_.Update();
 
-		// --- 背景制御 ---
 		float railYaw = std::atan2(railDir.x, railDir.z);
 		float lenXZ = std::sqrt(railDir.x * railDir.x + railDir.z * railDir.z);
 		float railPitch = std::atan2(-railDir.y, lenXZ);
@@ -242,7 +234,6 @@ void GameScene::Update() {
 		skydome_.SetPosition({0.0f, 0.0f, 0.0f});
 		skydome_.SetRotation({-railPitch, -railYaw, 0.0f});
 
-		// --- Ground制御 ---
 		Vector3 groundPos = {0.0f, -520.0f, 0.0f};
 		groundPos.x = currentRailPos.x * -1.0f;
 		groundPos.y = -520.0f + (currentRailPos.y * -1.0f);
@@ -253,39 +244,38 @@ void GameScene::Update() {
 		float rotSpeedX = moveDist / 520.0f;
 		ground_.Update(rotSpeedX);
 
-		// 雲の更新
 		clouds_.Update(railCamera_.GetWorldTransform().translation_);
 
-		// 敵更新
 		if (enemyManager_) {
 			enemyManager_->Update(railCamera_.GetWorldTransform().matWorld_, railCamera_.GetWorldTransform().rotation_);
 		}
 	}
 
 	skydome_.Update();
-	player_.Update();
+
+	// レティクル用更新
+	player_.Update(railCamera_.GetCamera());
 
 	CheckAllCollisions();
 }
 
 void GameScene::Draw() {
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-	Sprite::PreDraw(dxCommon->GetCommandList());
-	Sprite::PostDraw();
+	
 	Model::PreDraw(dxCommon->GetCommandList());
 
 	Camera& cam = railCamera_.GetCamera();
-
-	// 1. 奥にあるものや不透明なものを先に描く
-	skydome_.Draw(cam);
-	ground_.Draw(cam);
-
 	player_.Draw(cam);
 	if (enemyManager_)
 		enemyManager_->Draw(cam);
 
-	// 2. 半透明なもの（雲）は最後に描く！
+	skydome_.Draw(cam);
+	ground_.Draw(cam);
 	clouds_.Draw(cam);
+	
+	Sprite::PreDraw(dxCommon->GetCommandList());
+	player_.DrawUI();
+	Sprite::PostDraw();
 
 	Model::PostDraw();
 }
@@ -344,6 +334,7 @@ void GameScene::CheckAllCollisions() {
 		}
 	};
 
+	// 雑魚敵
 	for (auto* e : enemyManager_->GetEnemies()) {
 		collidePlayerVsBullets(e->GetBullets());
 		collidePBulletVsEnemy(e->GetPosition(), e->GetCollisionRadius(), e);
@@ -365,7 +356,7 @@ void GameScene::CheckAllCollisions() {
 		collidePBulletVsEBullet(e->GetBullets());
 	}
 
-	// ボス判定
+	// ボスの当たり判定
 	EnemyBoss* boss = enemyManager_->GetBoss();
 	if (boss && !boss->IsDead()) {
 		collidePlayerVsBullets(boss->GetBullets());

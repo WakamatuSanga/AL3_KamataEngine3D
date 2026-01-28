@@ -7,8 +7,14 @@
 class Player {
 public:
 	void Initialize(KamataEngine::Model* model);
-	void Update();
+
+	// ★変更：Updateにカメラ情報を渡す（座標計算用）
+	void Update(const KamataEngine::Camera& camera);
+
 	void Draw(KamataEngine::Camera& camera);
+
+	// ★追加：2D UI（レティクル）の描画用
+	void DrawUI();
 
 	KamataEngine::Vector3 GetPosition() const {
 		using namespace KamataEngine;
@@ -20,22 +26,16 @@ public:
 		return pos;
 	}
 
-	// 前方単位ベクトル（+Z 基準・親の回転も含める）
 	KamataEngine::Vector3 GetForwardDir() const {
 		using namespace KamataEngine;
-		// ワールド行列の 3x3 部分で (0,0,1) を回す
 		Vector3 fwd = TransformNormal({0, 0, 1}, worldTransform_.matWorld_);
 		return Normalized(fwd);
 	}
-	// 当たり時コールバック
 	void OnCollision();
 
-	// 死亡判定
 	bool IsDead() const { return isDead_; }
-	// HP取得（UI表示用など）
 	int GetHP() const { return hp_; }
 
-	// 自弾リストの貸出し
 	const std::vector<PlayerBullet*>& GetBullets() const { return bullets_; }
 	~Player();
 	float GetCollisionRadius() const;
@@ -48,23 +48,25 @@ private:
 	KamataEngine::Model* model_ = nullptr;
 	KamataEngine::Input* input_ = nullptr;
 
-	// 弾用
 	KamataEngine::Model* bulletModel_ = nullptr;
 	std::vector<PlayerBullet*> bullets_;
 
-	// マウス長押し連射制御
+	// 連射制御
 	bool mouseHeldPrev_ = false;
 	int holdFrames_ = 0;
-	int autoFireDelayFrames_ = 20;   // 長押し開始から何フレーム後に連射開始するか
-	int autoFireIntervalFrames_ = 5; // 連射間隔
-	int autoFireCounter_ = 0;        // 連射カウンタ（static廃止）
+	int autoFireDelayFrames_ = 20;
+	int autoFireIntervalFrames_ = 5;
+	int autoFireCounter_ = 0;
 
-	// HP関連
 	int hp_ = 10;
 	bool isDead_ = false;
-	// 被弾時の無敵時間など
 	int invincibilityTimer_ = 0;
-	static const int kInvincibilityTime = 60; // 60フレーム無敵
+	static const int kInvincibilityTime = 60;
+
+	// ★追加：レティクル制御
+	KamataEngine::Sprite* spriteReticle_ = nullptr;
+	KamataEngine::Vector3 target3DPos_ = {0, 0, 0}; // 3D空間上の狙っている位置
+	float targetDistance_ = 100.0f;                 // 狙う奥行き（カメラからの距離）
 
 	void SpawnBullet();
 };

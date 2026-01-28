@@ -67,6 +67,11 @@ Matrix4x4 MakeRotateZMatrix(float theta);
 Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle);
 Matrix4x4 MakeTranslateMatrix(const Vector3& translate);
 
+// ★追加：透視投影行列の作成
+Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearZ, float farZ);
+// ★追加：ビューポート行列の作成
+Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth);
+
 // アフィン変換行列の作成
 Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rot, const Vector3& translate);
 
