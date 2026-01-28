@@ -74,12 +74,12 @@ void GameScene::Initialize() {
 	
 	// 雲の初期化
 	     
-	        cloudModel_ = Model::CreateFromOBJ("cloud");
+	cloudModel_ = Model::CreateFromOBJ("cloud");
 	if (!cloudModel_) {
 		cloudModel_ = Model::Create(); // フォールバック
 	}
 	// 50個くらいの雲を生成
-	clouds_.Initialize(cloudModel_, 50);
+	clouds_.Initialize(cloudModel_, 40);
 
 	enemyManager_ = new EnemyManager();
 	enemyManager_->Initialize(&player_);
@@ -291,13 +291,17 @@ void GameScene::Draw() {
 	Model::PreDraw(dxCommon->GetCommandList());
 
 	Camera& cam = railCamera_.GetCamera();
+
+	// 1. 奥にあるものや不透明なものを先に描く
+	skydome_.Draw(cam);
+	ground_.Draw(cam);
+
 	player_.Draw(cam);
 	if (enemyManager_)
 		enemyManager_->Draw(cam);
 
-	skydome_.Draw(cam);
+	// 2. 半透明なもの（雲）は最後に描く！
 	clouds_.Draw(cam);
-	ground_.Draw(cam);
 
 	Model::PostDraw();
 }
