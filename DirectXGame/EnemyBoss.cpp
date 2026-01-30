@@ -34,7 +34,7 @@ void EnemyBoss::Initialize(Model* bossModel, Model* bulletModel, Model* homingBu
 	worldTransform_.translation_ = {0.0f, 0.0f, 200.0f};
 
 	// HP設定
-	hp_ = 1000;
+	hp_ = 1;
 
 	isDead_ = false;
 	phase_ = Phase::Approach;

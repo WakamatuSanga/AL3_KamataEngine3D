@@ -8,7 +8,7 @@ using namespace KamataEngine;
 
 void ClearScene::Initialize() {
 	camera_.Initialize();
-	camera_.translation_ = {0.0f, 0.0f, -15.0f};
+	camera_.translation_ = {0.0f, 2.0f, -10.0f};
 	camera_.UpdateMatrix();
 
 	// "clear_text" モデルなどを読み込む
