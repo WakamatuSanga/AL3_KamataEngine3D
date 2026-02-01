@@ -11,6 +11,12 @@ void TitleScene::Initialize() {
 	camera_.translation_ = {0.0f, 0.0f, -20.0f}; // 少し引く
 	camera_.UpdateMatrix();
 
+	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
+	if (!modelSkydome_) {
+		modelSkydome_ = Model::Create();
+	}
+	skydome_.Initialize(modelSkydome_);
+
 	// タイトル用モデル（無ければ cube で代用）
 	modelTitle_ = Model::CreateFromOBJ("title_text");
 	if (!modelTitle_)
@@ -32,6 +38,8 @@ void TitleScene::Initialize() {
 }
 
 void TitleScene::Update() {
+	skydome_.Update();
+
 	// タイトルモデルを回転させる演出
 	wtTitle_.rotation_.y += 0.02f;
 
@@ -64,6 +72,7 @@ void TitleScene::Draw() {
 	// 3D描画
 	Model::PreDraw(dxCommon->GetCommandList());
 
+	skydome_.Draw(camera_);
 	if (modelTitle_)
 		modelTitle_->Draw(wtTitle_, camera_);
 	if (modelChar_)
@@ -76,4 +85,5 @@ void TitleScene::Draw() {
 TitleScene::~TitleScene() {
 	delete modelTitle_;
 	delete modelChar_;
+	delete modelSkydome_;
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "IScene.h"
 #include "KamataEngine.h"
+#include "Skydome.h"
 
 class GameOverScene : public IScene {
 public:
@@ -19,4 +20,7 @@ private:
 	// 壊れたプレイヤー（あるいは転がっている）
 	KamataEngine::Model* modelPlayer_ = nullptr;
 	KamataEngine::WorldTransform wtPlayer_;
+
+	KamataEngine::Model* modelSkydome_ = nullptr;
+	Skydome skydome_;
 };

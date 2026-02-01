@@ -6,6 +6,7 @@
 #include "TitleScene.h"
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 using namespace KamataEngine;
 
@@ -15,6 +16,10 @@ GameScene::~GameScene() {
 	delete playerModel_;
 	delete cloudModel_;
 	delete enemyManager_;
+	delete spriteHP_;
+	for (int i = 0; i < 10; ++i) {
+		delete modelNumbers_[i];
+	}
 }
 
 void GameScene::Initialize() {
@@ -78,6 +83,32 @@ void GameScene::Initialize() {
 
 	enemyManager_ = new EnemyManager();
 	enemyManager_->Initialize(&player_);
+	// --- HP UIの初期化 ---
+	// 1. HPラベル（画像）
+	texHP_ = TextureManager::Load("./Resources/hp/hp.png");
+	spriteHP_ = Sprite::Create(texHP_, {0.0f, 0.0f});
+	// 必要に応じてサイズやアンカーポイントを調整
+	// spriteHP_->SetSize({64.0f, 32.0f});
+
+	// 2. 数字モデル（obj）
+	// ファイル名 "0" -> "0.obj" を読み込む想定
+	for (int i = 0; i < 10; ++i) {
+		std::string name = std::to_string(i);
+		modelNumbers_[i] = Model::CreateFromOBJ(name);
+		if (!modelNumbers_[i]) {
+			modelNumbers_[i] = Model::Create(); // フォールバック
+		}
+	}
+
+	// 3. UI用カメラとワールド変換の初期化
+	// 画面全体を映すために少し引いた位置に置く
+	uiCamera_.Initialize();
+	uiCamera_.translation_ = {0.0f, 0.0f, -20.0f};
+	uiCamera_.UpdateMatrix();
+
+	wtNumber_.Initialize();
+	// 数字モデルの基本スケール（大きすぎる場合はここで小さくする）
+	wtNumber_.scale_ = {0.5f, 0.5f, 0.5f};
 }
 
 void GameScene::Update() {
@@ -259,12 +290,37 @@ void GameScene::Update() {
 	CheckAllCollisions();
 }
 
+void GameScene::DrawNumber3D(int number, const Vector3& position) {
+	std::string strNum = std::to_string(number);
+	float charStepX = 1.0f; // 数字同士の間隔（モデルのサイズに合わせて調整）
+
+	for (size_t i = 0; i < strNum.length(); ++i) {
+		int digit = strNum[i] - '0';
+		if (digit >= 0 && digit <= 9 && modelNumbers_[digit]) {
+
+			// 位置合わせ
+			wtNumber_.translation_ = position;
+			wtNumber_.translation_.x += (float)i * charStepX;
+
+			// 行列更新
+			wtNumber_.matWorld_ = MakeAffineMatrix(wtNumber_.scale_, wtNumber_.rotation_, wtNumber_.translation_);
+			wtNumber_.TransferMatrix();
+
+			// UI用カメラで描画
+			modelNumbers_[digit]->Draw(wtNumber_, uiCamera_);
+		}
+	}
+}
+
 void GameScene::Draw() {
 	DirectXCommon* dxCommon = DirectXCommon::GetInstance();
-	
+
+	// 1. 3Dモデル描画開始
 	Model::PreDraw(dxCommon->GetCommandList());
 
 	Camera& cam = railCamera_.GetCamera();
+
+	// --- ユーザー指定の順序でゲームシーンを描画 ---
 	player_.Draw(cam);
 	if (enemyManager_)
 		enemyManager_->Draw(cam);
@@ -272,14 +328,75 @@ void GameScene::Draw() {
 	skydome_.Draw(cam);
 	ground_.Draw(cam);
 	clouds_.Draw(cam);
-	
+
+	// 2. 3D UI（HPの数字）の描画
+	// ★重要：ここで深度バッファをクリアし、壁や敵に埋もれず最前面に描画されるようにする
+	dxCommon->ClearDepthBuffer();
+
+	// --- 画面座標計算ロジック (ピクセル指定で配置) ---
+	float winW = 1280.0f;
+	float winH = 720.0f;
+
+	// UIカメラの逆行列を作成（画面→3D座標変換用）
+	Matrix4x4 matVPV = uiCamera_.matView * MakePerspectiveFovMatrix(uiCamera_.fovAngleY, winW / winH, uiCamera_.nearZ, uiCamera_.farZ) * MakeViewportMatrix(0, 0, winW, winH, 0, 1);
+	Matrix4x4 matInvVPV = Inverse(matVPV);
+
+	// 指定ピクセル位置にモデルを描画するヘルパー
+	auto DrawAtPixel = [&](Model* model, float pixelX, float pixelY) {
+		if (!model)
+			return;
+		Vector3 nearPos = Transform(Vector3(pixelX, pixelY, 0), matInvVPV);
+		Vector3 farPos = Transform(Vector3(pixelX, pixelY, 1), matInvVPV);
+		Vector3 worldPos = nearPos + Normalized(farPos - nearPos) * 20.0f; // カメラから20.0fの位置
+
+		wtNumber_.translation_ = worldPos;
+		wtNumber_.scale_ = {0.5f, 0.5f, 0.5f}; // サイズ固定
+		wtNumber_.rotation_ = {0, 0, 0};
+		wtNumber_.matWorld_ = MakeAffineMatrix(wtNumber_.scale_, wtNumber_.rotation_, wtNumber_.translation_);
+		wtNumber_.TransferMatrix();
+
+		model->Draw(wtNumber_, uiCamera_);
+	};
+
+	// --- 配置設定 (重ならないようにピクセル単位で指定) ---
+	float startX = 50.0f;  // 左端
+	float startY = 650.0f; // 上下位置
+	float stepX = 40.0f;   // 数字の間隔 (40px)
+
+	// (A) 現在HP
+	std::string strHP = std::to_string(player_.GetHP());
+	for (size_t i = 0; i < strHP.length(); ++i) {
+		int d = strHP[i] - '0';
+		DrawAtPixel(modelNumbers_[d], startX + (i * stepX), startY);
+	}
+
+	// (B) スラッシュ (数字の後に少し隙間を空けて配置)
+	float slashX = startX + (strHP.length() * stepX) + 20.0f;
+	if (modelSlash_) {
+		DrawAtPixel(modelSlash_, slashX, startY);
+	}
+
+	// (C) 最大HP (スラッシュの後に隙間を空けて配置)
+	float maxHpX = slashX + stepX + 20.0f;
+	DrawAtPixel(modelNumbers_[1], maxHpX, startY);         // '1'
+	DrawAtPixel(modelNumbers_[0], maxHpX + stepX, startY); // '0'
+
+	// 3. 2DスプライトUIの描画
 	Sprite::PreDraw(dxCommon->GetCommandList());
-	player_.DrawUI();
+
+	player_.DrawUI(); // レティクルなど
+
+	// HPラベル画像（数字の少し左に配置）
+	if (spriteHP_) {
+		spriteHP_->SetPosition({startX - 50.0f, startY - 15.0f});
+		spriteHP_->Draw();
+	}
+
 	Sprite::PostDraw();
 
+	// 4. 3Dモデル描画終了
 	Model::PostDraw();
 }
-
 void GameScene::CheckAllCollisions() {
 	if (!enemyManager_)
 		return;

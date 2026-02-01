@@ -8,6 +8,7 @@
 #include "RailCameraController.h"
 #include "Skydome.h"
 #include <vector>
+#include <string>
 
 class GameScene : public IScene {
 public:
@@ -47,6 +48,25 @@ private:
 
 	// レールカメラ
 	RailCameraController railCamera_;
+
+	// HPラベル用
+	uint32_t texHP_ = 0;
+	KamataEngine::Sprite* spriteHP_ = nullptr;
+
+	// 数字モデル (3Dオブジェクト 0~9)
+	KamataEngine::Model* modelNumbers_[10] = {};
+	KamataEngine::Model* modelSlash_ = nullptr;
+
+	// 数字描画用のワールドトランスフォーム
+	KamataEngine::WorldTransform wtNumber_;
+
+	// UI描画用の固定カメラ
+	KamataEngine::Camera uiCamera_;
+
+	// 3D数字描画のヘルパー関数
+	// number: 表示する数値
+	// position: UIカメラ空間での基準位置
+	void DrawNumber3D(int number, const KamataEngine::Vector3& position);
 
 	KamataEngine::WorldTransform playerWorldTransform_;
 	KamataEngine::Vector3 playerLocalPos_ = {0, 0, 0};

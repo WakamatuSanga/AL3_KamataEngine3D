@@ -10,6 +10,12 @@ void GameOverScene::Initialize() {
 	camera_.translation_ = {0.0f, 0.0f, -15.0f};
 	camera_.UpdateMatrix();
 
+	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
+	if (!modelSkydome_) {
+		modelSkydome_ = Model::Create();
+	}
+	skydome_.Initialize(modelSkydome_);
+
 	modelText_ = Model::CreateFromOBJ("gameover_text");
 	if (!modelText_)
 		modelText_ = Model::Create();
@@ -30,6 +36,7 @@ void GameOverScene::Initialize() {
 }
 
 void GameOverScene::Update() {
+	skydome_.Update();
 	// テキストを揺らす（絶望感）
 	float shake = (float)(rand() % 10 - 5) * 0.02f;
 	wtText_.translation_.x = shake;
@@ -54,6 +61,7 @@ void GameOverScene::Draw() {
 	Sprite::PostDraw();
 
 	Model::PreDraw(dxCommon->GetCommandList());
+	skydome_.Draw(camera_);
 	if (modelText_)
 		modelText_->Draw(wtText_, camera_);
 	if (modelPlayer_)
@@ -64,4 +72,5 @@ void GameOverScene::Draw() {
 GameOverScene::~GameOverScene() {
 	delete modelText_;
 	delete modelPlayer_;
+	delete modelSkydome_;
 }

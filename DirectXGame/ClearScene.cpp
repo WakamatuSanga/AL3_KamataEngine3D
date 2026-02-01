@@ -11,6 +11,12 @@ void ClearScene::Initialize() {
 	camera_.translation_ = {0.0f, 2.0f, -10.0f};
 	camera_.UpdateMatrix();
 
+
+	modelSkydome_ = Model::CreateFromOBJ("skydome", true);
+	if (!modelSkydome_) {
+		modelSkydome_ = Model::Create();
+	}
+	skydome_.Initialize(modelSkydome_);
 	// "clear_text" モデルなどを読み込む
 	modelText_ = Model::CreateFromOBJ("clear_text");
 	if (!modelText_)
@@ -31,6 +37,7 @@ void ClearScene::Initialize() {
 }
 
 void ClearScene::Update() {
+	skydome_.Update();
 	// テキストをバウンドさせる
 	static float bounce = 0.0f;
 	bounce += 0.1f;
@@ -61,6 +68,7 @@ void ClearScene::Draw() {
 	Sprite::PostDraw();
 
 	Model::PreDraw(dxCommon->GetCommandList());
+	skydome_.Draw(camera_);
 	if (modelText_)
 		modelText_->Draw(wtText_, camera_);
 	if (modelPlayer_)
@@ -72,4 +80,5 @@ void ClearScene::Draw() {
 ClearScene::~ClearScene() {
 	delete modelText_;
 	delete modelPlayer_;
+	delete modelSkydome_;
 }
