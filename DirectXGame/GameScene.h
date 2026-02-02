@@ -63,6 +63,9 @@ private:
 	// UI描画用の固定カメラ
 	KamataEngine::Camera uiCamera_;
 
+	KamataEngine::Model* modelOperation_ = nullptr;
+	KamataEngine::WorldTransform wtOperation_;
+
 	// 3D数字描画のヘルパー関数
 	// number: 表示する数値
 	// position: UIカメラ空間での基準位置

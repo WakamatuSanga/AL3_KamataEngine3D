@@ -17,6 +17,7 @@ GameScene::~GameScene() {
 	delete cloudModel_;
 	delete enemyManager_;
 	delete spriteHP_;
+	delete modelOperation_;
 	for (int i = 0; i < 10; ++i) {
 		delete modelNumbers_[i];
 	}
@@ -67,7 +68,16 @@ void GameScene::Initialize() {
 		Vector3 pos = CatmullRomSpline(splineControlPoints_, t);
 		splinePoints_.push_back(pos);
 	}
-
+	modelOperation_ = Model::CreateFromOBJ("Operation");
+	if (!modelOperation_)
+		modelOperation_ = Model::Create();
+	wtOperation_.Initialize();
+	wtOperation_.translation_ = {6.5f, -3.5f, 15.0f};
+	wtOperation_.rotation_ = {0.0f, 0.0f, 0.0f};
+	wtOperation_.scale_ = {1.0f, 1.0f, 1.0f};
+	Matrix4x4 matLocal = MakeAffineMatrix(wtOperation_.scale_, wtOperation_.rotation_, wtOperation_.translation_);
+	wtOperation_.matWorld_ = matLocal * railCamera_.GetWorldTransform().matWorld_;
+	wtOperation_.TransferMatrix();
 	groundModel_ = Model::CreateFromOBJ("sea", true);
 	ground_.Initialize(groundModel_);
 
@@ -93,7 +103,7 @@ void GameScene::Initialize() {
 	spriteHP_ = Sprite::Create(texHP_, {0.0f, 0.0f});
 	// 必要に応じてサイズやアンカーポイントを調整
 	// spriteHP_->SetSize({64.0f, 32.0f});
-
+	
 	// 2. 数字モデル（obj）
 	// ファイル名 "0" -> "0.obj" を読み込む想定
 	for (int i = 0; i < 10; ++i) {
@@ -293,6 +303,10 @@ void GameScene::Update() {
 		if (enemyManager_) {
 			enemyManager_->Update(railCamera_.GetWorldTransform().matWorld_, railCamera_.GetWorldTransform().rotation_);
 		}
+
+		Matrix4x4 matLocal = MakeAffineMatrix(wtOperation_.scale_, wtOperation_.rotation_, wtOperation_.translation_);
+		wtOperation_.matWorld_ = matLocal * railCamera_.GetWorldTransform().matWorld_;
+		wtOperation_.TransferMatrix();
 	}
 
 	skydome_.Update();
@@ -340,7 +354,11 @@ void GameScene::Draw() {
 
 	skydome_.Draw(cam);
 	ground_.Draw(cam);
+	if (modelOperation_) {
+		modelOperation_->Draw(wtOperation_, cam);
+	}
 	clouds_.Draw(cam);
+	
 	// --- 配置設定 (重ならないようにピクセル単位で指定) ---
 	float startX = 50.0f;  // 左端
 	float startY = 650.0f; // 上下位置
@@ -357,7 +375,7 @@ void GameScene::Draw() {
 		enemyManager_->DrawUI();
 	
 	Sprite::PostDraw();
-
+	
 	// 4. 3Dモデル描画終了
 	Model::PostDraw();
 }
