@@ -99,7 +99,7 @@ void GameScene::Initialize() {
 	enemyManager_->Initialize(&player_);
 	// --- HP UIの初期化 ---
 	// 1. HPラベル（画像）
-	texHP_ = TextureManager::Load("./Resources/hp/hp.png");
+	//texHP_ = TextureManager::Load("./Resources/hp/hp.png");
 	spriteHP_ = Sprite::Create(texHP_, {0.0f, 0.0f});
 	// 必要に応じてサイズやアンカーポイントを調整
 	// spriteHP_->SetSize({64.0f, 32.0f});

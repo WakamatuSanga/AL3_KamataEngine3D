@@ -70,7 +70,7 @@ void EnemyBoss::Initialize(Model* bossModel, Model* bulletModel, Model* homingBu
 
 	// SEロード
 	seShoot_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_boss_shoot.wav");
-	seHit_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_enemy_hit.wav");
+	seHit_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_boss_hit.wav");
 	seDead_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_boss_dead.wav");
 }
 
@@ -326,7 +326,7 @@ void EnemyBoss::OnCollision() {
 		return;
 	// 被弾音再生
 	uint32_t h = Audio::GetInstance()->PlayWave(seHit_, false);
-	Audio::GetInstance()->SetVolume(h, 0.5f);
+	Audio::GetInstance()->SetVolume(h, 0.4f);
 
 	hp_--;
 	if (hp_ <= 0) {
@@ -519,9 +519,9 @@ void EnemyBoss::FireTouhouHoming() {
 void EnemyBoss::FireBeam(bool isRight) {
 	if (!bulletModel_)
 		return;
-	// 発射音
-	uint32_t h = Audio::GetInstance()->PlayWave(seShoot_, false);
-	Audio::GetInstance()->SetVolume(h, 0.4f);
+	//// 発射音
+	//uint32_t h = Audio::GetInstance()->PlayWave(seShoot_, false);
+	//Audio::GetInstance()->SetVolume(h, 0.4f);
 	float minX = isRight ? 0.0f : -50.0f;
 	float maxX = isRight ? 50.0f : 0.0f;
 

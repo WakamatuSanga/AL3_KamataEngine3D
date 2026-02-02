@@ -264,7 +264,7 @@ void EnemyManager::LoadEnemyData() {
 	    17.0f, 1, {15.0f, -5.0f, 55.0f}
     });
 	spawnList_.push_back({
-	    18.0f, 3, {0.0f, 5.0f, 15.0f}
+	    18.0f, 3, {0.0f, 5.0f, 30.0f}
     });
 
 	// --- Boss Battle (25.0s ~ ) ---
