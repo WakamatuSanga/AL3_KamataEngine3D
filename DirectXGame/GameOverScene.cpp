@@ -33,6 +33,11 @@ void GameOverScene::Initialize() {
 	// 倒れているように回転
 	wtPlayer_.rotation_.x = 1.57f; // 90度
 	wtPlayer_.rotation_.z = 0.5f;
+
+	// BGM再生
+	bgmHandle_ = Audio::GetInstance()->LoadWave("./Resources/BGM/bgm_gameover.wav");
+	bgmVoiceHandle_ = Audio::GetInstance()->PlayWave(bgmHandle_, true);
+	Audio::GetInstance()->SetVolume(bgmVoiceHandle_, 0.5f);
 }
 
 void GameOverScene::Update() {
@@ -73,4 +78,8 @@ GameOverScene::~GameOverScene() {
 	delete modelText_;
 	delete modelPlayer_;
 	delete modelSkydome_;
+
+	if (Audio::GetInstance()->IsPlaying(bgmVoiceHandle_)) {
+		Audio::GetInstance()->StopWave(bgmVoiceHandle_);
+	}
 }

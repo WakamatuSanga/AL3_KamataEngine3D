@@ -51,4 +51,5 @@ private:
 
 	void FaceToVelocity_();
 	void KillIfOutOfRange_();
+	
 };

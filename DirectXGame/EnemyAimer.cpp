@@ -24,11 +24,18 @@ void EnemyAimer::Initialize(Model* model, Player* player) {
 
 	bulletModel_ = Model::CreateFromOBJ("enemyBullet");
 	shotTimer_ = 0;
+
+	// SEロード
+	seShoot_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_enemy_shoot.wav");
 }
 
 void EnemyAimer::FireAimedBullet() {
 	if (!bulletModel_ || !player_)
 		return;
+
+	// 再生
+	uint32_t h = Audio::GetInstance()->PlayWave(seShoot_, false);
+	Audio::GetInstance()->SetVolume(h, 0.3f);
 
 	const float kBulletSpeed = 0.6f;
 	Vector3 enemyPos = worldTransform_.translation_;

@@ -292,3 +292,59 @@ bool EnemyManager::IsBossDead() const {
 		return false;
 	return true;
 }
+
+void EnemyManager::DrawUI() {
+	if (boss_) {
+		boss_->DrawUI();
+	}
+}
+bool EnemyManager::GetReticleTarget(const Vector2& mousePos, const Matrix4x4& matVPV, Vector3& hitPos) const {
+	bool isHit = false;
+	float minDepth = 1.0f;
+
+	// ★修正：固定の判定半径を使う (150.0f)
+	// 敵のモデルサイズに関わらず、画面上で「レティクルの中心から150ピクセル以内」にあればロックする
+	// これにより「近くても遠くても、レティクルに乗ればロックする」挙動になります。
+	const float fixedLockRadius = 150.0f;
+	const float lockRadiusSq = fixedLockRadius * fixedLockRadius;
+
+	auto checkHit = [&](const Vector3& enemyPos) {
+		Vector3 targetPos = enemyPos;
+
+		Vector3 screenPos = Transform(targetPos, matVPV);
+
+		// 画面外（前後）の敵は除外
+		// ★手前すぎると計算がおかしくなるので、0.0f付近も除外
+		if (screenPos.z < 0.01f || screenPos.z > 1.0f)
+			return;
+
+		// 画面上の距離をチェック
+		float dx = screenPos.x - mousePos.x;
+		float dy = screenPos.y - mousePos.y;
+		float distSq = dx * dx + dy * dy;
+
+		// 固定半径で判定
+		if (distSq <= lockRadiusSq) {
+			if (screenPos.z < minDepth) {
+				minDepth = screenPos.z;
+				hitPos = targetPos;
+				isHit = true;
+			}
+		}
+	};
+
+	for (const auto* e : enemies_)
+		checkHit(e->GetPosition());
+	for (const auto* e : aimers_)
+		checkHit(e->GetPosition());
+	for (const auto* e : homings_)
+		checkHit(e->GetPosition());
+	for (const auto* e : follows_)
+		checkHit(e->GetPosition());
+
+	if (boss_ && !boss_->IsDead()) {
+		checkHit(boss_->GetPosition());
+	}
+
+	return isHit;
+}

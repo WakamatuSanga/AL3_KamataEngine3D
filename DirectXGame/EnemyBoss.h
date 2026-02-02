@@ -15,8 +15,11 @@ public:
 	// 更新
 	void Update(const KamataEngine::Vector3& cameraPos);
 
-	// 描画
+	// 3D描画
 	void Draw(KamataEngine::Camera& camera);
+
+	// 2D UI（HPバー＆警告）描画
+	void DrawUI();
 
 	// 衝突時の処理
 	void OnCollision();
@@ -45,7 +48,7 @@ private:
 		AttackDanmaku,   // 花火弾幕
 		AttackTouhou,    // 東方風全方位ホーミング
 		AttackBeamRight, // 右側ビーム
-		AttackBeamLeft,  // ★新規：左側ビーム
+		AttackBeamLeft,  // 左側ビーム
 		Standby          // 待機
 	};
 
@@ -56,7 +59,7 @@ private:
 	void FireSpiralBullet();
 	void FireDanmaku();
 	void FireTouhouHoming();
-	void FireBeam(bool isRight); // ★変更：左右指定可能に
+	void FireBeam(bool isRight);
 
 	// 移動先の決定
 	void DecideNextPosition(const KamataEngine::Vector3& cameraPos);
@@ -73,6 +76,7 @@ private:
 	std::vector<EnemyHomingBullet*> homingBullets_;
 
 	int hp_ = 1000;
+	float maxHp_ = 1000.0f;
 	bool isDead_ = false;
 
 	Phase phase_ = Phase::Approach;
@@ -83,4 +87,16 @@ private:
 	int moveTimer_ = 0;
 
 	const float kModelScale_ = 6.0f;
+
+	// HPバー用スプライト
+	KamataEngine::Sprite* hpBarBG_ = nullptr;
+	KamataEngine::Sprite* hpBar_ = nullptr;
+
+	// ★追加：警告エリア表示用スプライト
+	KamataEngine::Sprite* warningArea_ = nullptr;
+
+	// SE
+	uint32_t seShoot_ = 0;
+	uint32_t seHit_ = 0;
+	uint32_t seDead_ = 0;
 };

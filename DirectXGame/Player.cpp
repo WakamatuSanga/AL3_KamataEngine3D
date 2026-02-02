@@ -1,4 +1,5 @@
 #include "Player.h"
+#include "EnemyManager.h"
 #include "MyMath.h"
 #include <Windows.h>
 #include <algorithm>
@@ -10,9 +11,14 @@ Player::~Player() {
 	for (auto* b : bullets_)
 		delete b;
 	bullets_.clear();
-	if (spriteReticle_) {
+
+	if (spriteReticle_)
 		delete spriteReticle_;
-	}
+	// ★追加：HPバースプライトの解放
+	if (spriteHPBarBG_)
+		delete spriteHPBarBG_;
+	if (spriteHPBar_)
+		delete spriteHPBar_;
 }
 
 void Player::Initialize(Model* model) {
@@ -30,41 +36,60 @@ void Player::Initialize(Model* model) {
 		bulletModel_ = Model::Create();
 	}
 
+	// HP初期化
 	hp_ = 10;
+	maxHp_ = 10.0f; // 最大HPを記憶
 	isDead_ = false;
 	invincibilityTimer_ = 0;
 
-	// レティクル設定
+	// レティクル
 	uint32_t reticleTexture = TextureManager::Load("./Resources/reticle/reticle.png");
 	spriteReticle_ = Sprite::Create(reticleTexture, {0, 0});
 	spriteReticle_->SetAnchorPoint({0.5f, 0.5f});
 	spriteReticle_->SetSize({128.0f, 128.0f});
 	spriteReticle_->SetColor({1.0f, 1.0f, 1.0f, 0.5f});
+
+	
+	uint32_t barTexture = TextureManager::Load("./Resources/white/white.png");
+	// 万が一読み込めなかったらレティクルで代用（エラー落ち防止）
+	if (barTexture == 0)
+		barTexture = reticleTexture;
+
+	// 背景（グレー）
+	spriteHPBarBG_ = Sprite::Create(barTexture, {20.0f, 680.0f}); // 左下座標
+	spriteHPBarBG_->SetSize({300.0f, 30.0f});                     // 横300, 縦30
+	spriteHPBarBG_->SetColor({0.3f, 0.3f, 0.3f, 0.8f});           // 半透明グレー
+
+	// 前景（緑）
+	spriteHPBar_ = Sprite::Create(barTexture, {20.0f, 680.0f});
+	spriteHPBar_->SetSize({300.0f, 30.0f});
+	spriteHPBar_->SetColor({0.2f, 1.0f, 0.2f, 1.0f}); // 鮮やかな緑
+
+	seShoot_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_player_shoot.wav");
+	seHit_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_player_hit.wav");
 }
 
-// 弾生成
 void Player::SpawnBullet() {
 	if (!bulletModel_)
 		return;
 
+	// 発射音再生
+	uint32_t h = Audio::GetInstance()->PlayWave(seShoot_, false);
+	Audio::GetInstance()->SetVolume(h, 0.3f);
+
 	const float kBulletSpeed = 1.0f;
 
-	// 自機の現在位置（ワールド座標）
-	// ※Update内で更新された最新の行列から取得
 	Vector3 spawnPos{
 	    worldTransform_.matWorld_.m[3][0],
 	    worldTransform_.matWorld_.m[3][1],
 	    worldTransform_.matWorld_.m[3][2],
 	};
 
-	// レティクルが指す3D位置へのベクトル
 	Vector3 toTarget = target3DPos_ - spawnPos;
 	Vector3 velocity = Normalized(toTarget) * kBulletSpeed;
 
 	auto* b = new PlayerBullet();
 	b->Initialize(bulletModel_, spawnPos, velocity);
-
-	// 画面奥まで届くように寿命を長く設定
 	b->SetLifeTimeFrames(300);
 	b->SetAlignToVelocity(true);
 	bullets_.push_back(b);
@@ -81,6 +106,10 @@ void Player::SetParent(const KamataEngine::WorldTransform* parent) { worldTransf
 
 void Player::OnCollision() {
 	if (invincibilityTimer_ <= 0) {
+		// 被弾音再生
+		uint32_t h = Audio::GetInstance()->PlayWave(seHit_, false);
+		Audio::GetInstance()->SetVolume(h, 0.8f);
+
 		hp_--;
 		if (hp_ <= 0) {
 			hp_ = 0;
@@ -91,8 +120,7 @@ void Player::OnCollision() {
 	}
 }
 
-// Update関数
-void Player::Update(const Camera& camera) {
+void Player::Update(const Camera& camera, const EnemyManager* enemyManager) {
 	if (invincibilityTimer_ > 0) {
 		invincibilityTimer_--;
 	}
@@ -100,18 +128,15 @@ void Player::Update(const Camera& camera) {
 	if (isDead_)
 		return;
 
-	// ★修正ポイント1：重複していた移動処理（WASD入力）を削除しました
-	// 移動は GameScene 側で制御され、worldTransform_ に反映済みです。
-	// ここでは最新の位置情報を使って行列を確定させます。
 	WorldTransformUpdate(worldTransform_);
 
 	// --- レティクル＆照準計算 ---
 	Vector2 mousePos = input_->GetMousePosition();
+
 	if (spriteReticle_) {
 		spriteReticle_->SetPosition(mousePos);
 	}
 
-	// 1. ビューポート逆行列の作成
 	float winW = 1280.0f;
 	float winH = 720.0f;
 
@@ -122,18 +147,31 @@ void Player::Update(const Camera& camera) {
 	Matrix4x4 matVPV = matView * matProj * matViewport;
 	Matrix4x4 matInvVPV = Inverse(matVPV);
 
-	// 2. マウス位置からのレイ（光線）を作成
 	Vector3 nearPos = Transform(Vector3(mousePos.x, mousePos.y, 0), matInvVPV);
 	Vector3 farPos = Transform(Vector3(mousePos.x, mousePos.y, 1), matInvVPV);
 	Vector3 rayDir = Normalized(farPos - nearPos);
 
-	// 3. ターゲット位置を決定
-	// ★距離を200.0fに設定（ボスの初期位置付近）
-	// これにより、画面端を狙った際の角度ズレを最小限に抑えます
-	float distance = 500.0f;
-	target3DPos_ = nearPos + rayDir * distance;
+	// --- ロックオン処理 ---
+	Vector3 hitPos;
+	bool isLocked = false;
 
-	// --- 射撃処理 ---
+	if (enemyManager) {
+		if (enemyManager->GetReticleTarget(mousePos, matVPV, hitPos)) {
+			target3DPos_ = hitPos;
+			isLocked = true;
+			if (spriteReticle_)
+				spriteReticle_->SetColor({1.0f, 0.3f, 0.3f, 0.8f});
+		}
+	}
+
+	if (!isLocked) {
+		float distance = 300.0f;
+		target3DPos_ = nearPos + rayDir * distance;
+		if (spriteReticle_)
+			spriteReticle_->SetColor({1.0f, 1.0f, 1.0f, 0.5f});
+	}
+
+	// --- 射撃 ---
 	bool pressed = input_->IsTriggerMouse(0);
 	bool held = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
 	bool released = (!held && mouseHeldPrev_);
@@ -176,7 +214,6 @@ void Player::Update(const Camera& camera) {
 
 void Player::Draw(Camera& camera) {
 	if (invincibilityTimer_ > 0 && (invincibilityTimer_ / 5) % 2 == 0) {
-		// 点滅中は描画スキップ
 	} else {
 		if (model_) {
 			model_->Draw(worldTransform_, camera);
@@ -191,6 +228,27 @@ void Player::Draw(Camera& camera) {
 void Player::DrawUI() {
 	if (isDead_)
 		return;
+
+	// HPバーの描画処理
+	if (spriteHPBarBG_ && spriteHPBar_) {
+		// 現在のHP割合を計算 (0.0 ～ 1.0)
+		float ratio = (float)hp_ / maxHp_;
+		if (ratio < 0.0f)
+			ratio = 0.0f;
+
+		// バーの最大幅（初期化時に設定した300.0f）
+		float maxWidth = 300.0f;
+		float currentWidth = maxWidth * ratio;
+
+		// 前景バーのサイズを更新
+		spriteHPBar_->SetSize({currentWidth, 30.0f});
+
+		// 描画（背景 → 前景 の順）
+		spriteHPBarBG_->Draw();
+		spriteHPBar_->Draw();
+	}
+
+	// レティクル描画
 	if (spriteReticle_) {
 		spriteReticle_->Draw();
 	}

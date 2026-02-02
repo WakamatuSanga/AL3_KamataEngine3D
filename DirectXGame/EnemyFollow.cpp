@@ -25,6 +25,8 @@ void EnemyFollow::Initialize(Model* model, Player* player, const Vector3& offset
 	worldTransform_.translation_ = {0.0f, 0.0f, 0.0f};
 
 	bulletModel_ = Model::CreateFromOBJ("enemyBullet");
+	// ★SEロード
+	seShoot_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_enemy_shoot.wav");
 	if (!bulletModel_)
 		bulletModel_ = Model::Create();
 
@@ -40,7 +42,9 @@ float EnemyFollow::GetCollisionRadius() const {
 void EnemyFollow::FireAimedBullet() {
 	if (!bulletModel_ || !player_)
 		return;
-
+	// 再生
+	uint32_t h = Audio::GetInstance()->PlayWave(seShoot_, false);
+	Audio::GetInstance()->SetVolume(h, 0.3f);
 	const float kBulletSpeed = 0.4f; // 追従中は弾速遅めでいやらしく
 	Vector3 myPos = worldTransform_.translation_;
 	Vector3 playerPos = player_->GetPosition();

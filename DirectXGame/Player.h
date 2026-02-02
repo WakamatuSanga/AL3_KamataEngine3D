@@ -4,16 +4,17 @@
 #include "PlayerBullet.h"
 #include <vector>
 
+// 前方宣言
+class EnemyManager;
+
 class Player {
 public:
 	void Initialize(KamataEngine::Model* model);
 
-	// ★変更：Updateにカメラ情報を渡す（座標計算用）
-	void Update(const KamataEngine::Camera& camera);
+	// EnemyManager* を引数に追加
+	void Update(const KamataEngine::Camera& camera, const EnemyManager* enemyManager);
 
 	void Draw(KamataEngine::Camera& camera);
-
-	// ★追加：2D UI（レティクル）の描画用
 	void DrawUI();
 
 	KamataEngine::Vector3 GetPosition() const {
@@ -51,7 +52,6 @@ private:
 	KamataEngine::Model* bulletModel_ = nullptr;
 	std::vector<PlayerBullet*> bullets_;
 
-	// 連射制御
 	bool mouseHeldPrev_ = false;
 	int holdFrames_ = 0;
 	int autoFireDelayFrames_ = 20;
@@ -59,14 +59,21 @@ private:
 	int autoFireCounter_ = 0;
 
 	int hp_ = 10;
+	float maxHp_ = 10.0f; // ★追加：HPバー計算用の最大値
 	bool isDead_ = false;
 	int invincibilityTimer_ = 0;
 	static const int kInvincibilityTime = 60;
 
-	// ★追加：レティクル制御
 	KamataEngine::Sprite* spriteReticle_ = nullptr;
-	KamataEngine::Vector3 target3DPos_ = {0, 0, 0}; // 3D空間上の狙っている位置
-	float targetDistance_ = 100.0f;                 // 狙う奥行き（カメラからの距離）
+	KamataEngine::Vector3 target3DPos_ = {0, 0, 0};
+
+	// HPバー用のスプライト
+	KamataEngine::Sprite* spriteHPBarBG_ = nullptr; // 背景（減った部分）
+	KamataEngine::Sprite* spriteHPBar_ = nullptr;   // 前景（残っている部分）
+
+	// SEハンドル
+	uint32_t seShoot_ = 0;
+	uint32_t seHit_ = 0;
 
 	void SpawnBullet();
 };

@@ -33,6 +33,8 @@ void EnemyHoming::Initialize(Model* model, Player* player) {
 		bulletModel_ = Model::Create();
 
 	shotTimer_ = 0;
+	// ★SEロード
+	seShoot_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_enemy_shoot.wav");
 }
 
 void EnemyHoming::FireHomingBullet_() {
@@ -56,6 +58,9 @@ void EnemyHoming::Update() {
 	// 発射
 	++shotTimer_;
 	if (shotTimer_ >= shotInterval_) {
+		// 再生
+		uint32_t h = Audio::GetInstance()->PlayWave(seShoot_, false);
+		Audio::GetInstance()->SetVolume(h, 0.3f);
 		shotTimer_ = 0;
 		FireHomingBullet_();
 	}

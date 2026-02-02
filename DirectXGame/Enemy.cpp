@@ -28,6 +28,9 @@ void Enemy::Initialize(Model* model) {
 	isDead_ = false;
 
 	bulletModel_ = Model::CreateFromOBJ("enemyBullet");
+
+	// ★SEロード
+	seShoot_ = Audio::GetInstance()->LoadWave("./Resources/SE/se_enemy_shoot.wav");
 }
 
 void Enemy::FireBullet() {
@@ -73,6 +76,7 @@ void Enemy::UpdateApproach() {
 	// 一定間隔で発射
 	++shotTimer_;
 	if (shotTimer_ >= shotInterval_) {
+
 		shotTimer_ = 0;
 		FireBullet();
 	}

@@ -46,4 +46,6 @@ private:
 	int shotInterval_ = 45;
 
 	void FireBullet();
+	// ★SE
+	uint32_t seShoot_ = 0;
 };

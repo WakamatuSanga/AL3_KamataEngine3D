@@ -35,6 +35,12 @@ void TitleScene::Initialize() {
 
 	wtChar_.Initialize();
 	wtChar_.translation_ = {0.0f, -2.0f, 0.0f};
+
+	// BGM再生
+	// ※ Resourcesフォルダに bgm_title.wav を用意してください
+	bgmHandle_ = Audio::GetInstance()->LoadWave("./Resources/BGM/bgm_title.wav");
+	bgmVoiceHandle_ = Audio::GetInstance()->PlayWave(bgmHandle_, true); // ループ再生
+	Audio::GetInstance()->SetVolume(bgmVoiceHandle_, 0.5f);
 }
 
 void TitleScene::Update() {
@@ -86,4 +92,9 @@ TitleScene::~TitleScene() {
 	delete modelTitle_;
 	delete modelChar_;
 	delete modelSkydome_;
+
+	// シーン終了時にBGMを停止
+	if (Audio::GetInstance()->IsPlaying(bgmVoiceHandle_)) {
+		Audio::GetInstance()->StopWave(bgmVoiceHandle_);
+	}
 }

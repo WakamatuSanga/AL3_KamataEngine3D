@@ -87,4 +87,13 @@ private:
 
 	// 1フレーム前のレール位置（移動量計算用）
 	KamataEngine::Vector3 preRailPos_ = {0, 0, 0};
+
+
+	// BGM
+	uint32_t bgmHandle_ = 0;
+	uint32_t bgmVoiceHandle_ = 0;
+
+	// 雑魚敵用SE（一括管理）
+	uint32_t seEnemyHit_ = 0;
+	uint32_t seEnemyDead_ = 0;
 };

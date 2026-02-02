@@ -46,4 +46,7 @@ private:
 	float appearTimer_ = 0.0f;
 
 	void FireAimedBullet();
+
+	// ★SE
+	uint32_t seShoot_ = 0;
 };

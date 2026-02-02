@@ -24,4 +24,7 @@ private:
 
 	KamataEngine::Model* modelSkydome_ = nullptr;
 	Skydome skydome_;
+	// BGM用ハンドル
+	uint32_t bgmHandle_ = 0;      // データ
+	uint32_t bgmVoiceHandle_ = 0; // 再生インスタンス
 };

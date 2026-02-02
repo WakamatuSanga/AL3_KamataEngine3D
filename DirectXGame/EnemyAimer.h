@@ -38,4 +38,6 @@ private:
 	float stopShootMarginZ_ = 0.0f;
 
 	void FireAimedBullet();
+	// ★SE
+	uint32_t seShoot_ = 0;
 };

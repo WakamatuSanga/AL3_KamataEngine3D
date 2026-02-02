@@ -39,4 +39,6 @@ private:
 	float turnRate_ = 0.10f;
 
 	void FireHomingBullet_();
+	// ★SE
+	uint32_t seShoot_ = 0;
 };

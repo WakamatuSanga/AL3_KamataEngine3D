@@ -34,6 +34,11 @@ void ClearScene::Initialize() {
 
 	wtPlayer_.Initialize();
 	wtPlayer_.translation_ = {0.0f, -1.0f, 0.0f};
+
+	// BGM再生
+	bgmHandle_ = Audio::GetInstance()->LoadWave("./Resources/BGM/bgm_clear.wav");
+	bgmVoiceHandle_ = Audio::GetInstance()->PlayWave(bgmHandle_, true);
+	Audio::GetInstance()->SetVolume(bgmVoiceHandle_, 0.5f);
 }
 
 void ClearScene::Update() {
@@ -81,4 +86,9 @@ ClearScene::~ClearScene() {
 	delete modelText_;
 	delete modelPlayer_;
 	delete modelSkydome_;
+
+	// 停止
+	if (Audio::GetInstance()->IsPlaying(bgmVoiceHandle_)) {
+		Audio::GetInstance()->StopWave(bgmVoiceHandle_);
+	}
 }

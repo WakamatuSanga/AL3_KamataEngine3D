@@ -1,7 +1,7 @@
 #pragma once
 #include "Enemy.h"
 #include "EnemyAimer.h"
-#include "EnemyBoss.h" // ボスをインクルード
+#include "EnemyBoss.h"
 #include "EnemyFollow.h"
 #include "EnemyHoming.h"
 #include "KamataEngine.h"
@@ -25,11 +25,15 @@ public:
 	void Initialize(Player* player);
 	void Update(const KamataEngine::Matrix4x4& cameraMat, const KamataEngine::Vector3& cameraRot);
 	void Draw(KamataEngine::Camera& camera);
+	// ★追加：UI描画
+	void DrawUI();
+
 	void LoadEnemyData();
 
-	// クリア判定用
 	bool IsAllFollowEnemiesDead() const;
 	bool IsBossDead() const;
+
+	bool GetReticleTarget(const KamataEngine::Vector2& mousePos, const KamataEngine::Matrix4x4& matVPV, KamataEngine::Vector3& hitPos) const;
 
 	const std::vector<Enemy*>& GetEnemies() const { return enemies_; }
 	const std::vector<EnemyAimer*>& GetAimers() const { return aimers_; }

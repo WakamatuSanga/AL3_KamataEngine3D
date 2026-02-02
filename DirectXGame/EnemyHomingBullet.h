@@ -41,4 +41,5 @@ private:
 	const Player* player_ = nullptr;
 
 	void FaceToVelocity_(); // 見た目を進行方向に
+	
 };
